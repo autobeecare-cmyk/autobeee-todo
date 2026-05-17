@@ -1,0 +1,284 @@
+"use client";
+// src/app/goals/page.tsx — Goals System
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Plus, X, Target, TrendingUp, CheckCircle2, PauseCircle } from "lucide-react";
+import { format } from "date-fns";
+import { useGoalStore } from "@/store/useGoalStore";
+import { createGoal, updateGoal, deleteGoal } from "@/lib/firestore/goals";
+import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
+import type { Goal, GoalCategory } from "@/lib/types";
+
+const CATEGORIES: GoalCategory[] = ["startup", "growth", "learning", "product", "finance"];
+
+const CAT_COLOR: Record<GoalCategory, string> = {
+  startup: "#FFC107",
+  growth: "#22c55e",
+  learning: "#6366f1",
+  product: "#f97316",
+  finance: "#06b6d4",
+};
+
+const STATUS_ICON = {
+  active: TrendingUp,
+  completed: CheckCircle2,
+  paused: PauseCircle,
+};
+
+function GoalCard({ goal, onEdit }: { goal: Goal; onEdit: (g: Goal) => void }) {
+  const catColor = CAT_COLOR[goal.category];
+  const Icon = STATUS_ICON[goal.status];
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="rounded-2xl p-5 cursor-pointer card-hover bg-[var(--card)] border border-[var(--border)]"
+      onClick={() => onEdit(goal)}
+    >
+      <div className="flex items-start justify-between mb-3">
+        <div
+          className="px-2 py-1 rounded-lg text-[10px] font-semibold capitalize"
+          style={{ background: catColor + "18", color: catColor }}
+        >
+          {goal.category}
+        </div>
+        <Icon
+          className="w-4 h-4"
+          style={{ color: goal.status === "completed" ? "#22c55e" : goal.status === "paused" ? "#6b7280" : catColor }}
+        />
+      </div>
+
+      <h3 className="font-semibold text-sm mb-1 leading-snug">{goal.title}</h3>
+      {goal.description && (
+        <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{goal.description}</p>
+      )}
+
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-muted-foreground">Progress</span>
+          <span className="font-semibold" style={{ color: catColor }}>{goal.progress}%</span>
+        </div>
+        <Progress value={goal.progress} className="h-2" />
+      </div>
+
+      {goal.targetDate && (
+        <p className="text-[10px] text-muted-foreground mt-3">
+          Target: {format(new Date(goal.targetDate), "d MMM yyyy")}
+        </p>
+      )}
+    </motion.div>
+  );
+}
+
+function GoalModal({ goal, onClose }: { goal: Goal | null; onClose: () => void }) {
+  const [title, setTitle] = useState(goal?.title ?? "");
+  const [desc, setDesc] = useState(goal?.description ?? "");
+  const [category, setCategory] = useState<GoalCategory>(goal?.category ?? "startup");
+  const [progress, setProgress] = useState(goal?.progress ?? 0);
+  const [status, setStatus] = useState(goal?.status ?? "active");
+  const [targetDate, setTargetDate] = useState(goal?.targetDate ?? "");
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    if (!title.trim()) return;
+    setSaving(true);
+    const data = { title, description: desc, category, progress, status: status as Goal["status"], targetDate, linkedTaskIds: goal?.linkedTaskIds ?? [] };
+    if (goal) {
+      await updateGoal(goal.id, data);
+    } else {
+      await createGoal(data);
+    }
+    setSaving(false);
+    onClose();
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center sm:px-4"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }}
+        transition={{ type: "spring", damping: 26, stiffness: 280 }}
+        className="w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-6 space-y-4"
+        style={{ background: "#161616", border: "1px solid rgba(255,255,255,0.09)" }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <h2 className="font-semibold">{goal ? "Edit Goal" : "New Goal"}</h2>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-white/5">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <input
+          autoFocus value={title} onChange={e => setTitle(e.target.value)}
+          placeholder="Goal title"
+          className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/08 text-sm outline-none focus:border-[rgba(255,193,7,0.4)] transition-colors"
+        />
+        <textarea
+          value={desc} onChange={e => setDesc(e.target.value)}
+          placeholder="Description (optional)" rows={2}
+          className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/08 text-sm outline-none resize-none"
+        />
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs text-muted-foreground mb-1.5 block">Category</label>
+            <select value={category} onChange={e => setCategory(e.target.value as GoalCategory)}
+              className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/08 text-sm outline-none text-foreground capitalize">
+              {CATEGORIES.map(c => <option key={c} value={c} className="bg-[#161616] text-[#f5f5f5] capitalize">{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1.5 block">Status</label>
+            <select value={status} onChange={e => setStatus(e.target.value as "active" | "completed" | "paused")}
+              className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/08 text-sm outline-none text-foreground">
+              <option value="active" className="bg-[#161616] text-[#f5f5f5]">Active</option>
+              <option value="paused" className="bg-[#161616] text-[#f5f5f5]">Paused</option>
+              <option value="completed" className="bg-[#161616] text-[#f5f5f5]">Completed</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label className="text-xs text-muted-foreground mb-1.5 block">Progress: {progress}%</label>
+          <input
+            type="range" min={0} max={100} value={progress}
+            onChange={e => setProgress(Number(e.target.value))}
+            className="w-full accent-[#FFC107]"
+          />
+        </div>
+
+        <div>
+          <label className="text-xs text-muted-foreground mb-1.5 block">Target Date</label>
+          <input type="date" value={targetDate} onChange={e => setTargetDate(e.target.value)}
+            className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/08 text-sm outline-none text-foreground" />
+        </div>
+
+        <div className="flex gap-3">
+          {goal && (
+            <button
+              onClick={async () => { await deleteGoal(goal.id, goal.title); onClose(); }}
+              className="px-4 py-2.5 rounded-xl bg-red-500/10 text-red-400 text-sm hover:bg-red-500/20 transition-colors"
+            >
+              Delete
+            </button>
+          )}
+          <button
+            onClick={save} disabled={saving || !title.trim()}
+            className="flex-1 py-2.5 rounded-xl bee-gradient text-[#111] font-semibold text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {saving ? <div className="w-4 h-4 border-2 border-[#111]/30 border-t-[#111] rounded-full animate-spin" /> : (goal ? "Save" : "Create Goal")}
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+export default function GoalsPage() {
+  const { goals, loading } = useGoalStore();
+  const [editGoal, setEditGoal] = useState<Goal | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [filterCat, setFilterCat] = useState<GoalCategory | "all">("all");
+
+  const filtered = filterCat === "all" ? goals : goals.filter(g => g.category === filterCat);
+  const active = filtered.filter(g => g.status === "active");
+  const completed = filtered.filter(g => g.status === "completed");
+  const paused = filtered.filter(g => g.status === "paused");
+
+  const avgProgress = goals.length > 0 ? Math.round(goals.reduce((s, g) => s + g.progress, 0) / goals.length) : 0;
+
+  return (
+    <div className="px-4 py-6 max-w-5xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-xl font-bold">Goals</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {goals.filter(g => g.status === "active").length} active · {avgProgress}% avg progress
+          </p>
+        </div>
+        <motion.button
+          whileTap={{ scale: 0.92 }}
+          onClick={() => setCreating(true)}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bee-gradient text-[#111] text-sm font-semibold"
+        >
+          <Plus className="w-4 h-4" strokeWidth={2.5} />
+          New Goal
+        </motion.button>
+      </div>
+
+      {/* Category filter */}
+      <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar pb-1">
+        {["all", ...CATEGORIES].map(cat => (
+          <button
+            key={cat}
+            onClick={() => setFilterCat(cat as GoalCategory | "all")}
+            className={cn(
+              "px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all border",
+              filterCat === cat
+                ? "bee-gradient text-[#111] border-transparent"
+                : "bg-white/5 text-muted-foreground border-white/08 hover:text-foreground"
+            )}
+          >
+            {cat === "all" ? "All" : cat.charAt(0).toUpperCase() + cat.slice(1)}
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-44 rounded-2xl" />)}
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-20">
+          <Target className="w-12 h-12 text-[#FFC107] mx-auto mb-3 opacity-40" />
+          <p className="text-muted-foreground text-sm">No goals yet. Set your first goal.</p>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {active.length > 0 && (
+            <div>
+              <h2 className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Active</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {active.map(g => <GoalCard key={g.id} goal={g} onEdit={setEditGoal} />)}
+              </div>
+            </div>
+          )}
+          {paused.length > 0 && (
+            <div>
+              <h2 className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Paused</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {paused.map(g => <GoalCard key={g.id} goal={g} onEdit={setEditGoal} />)}
+              </div>
+            </div>
+          )}
+          {completed.length > 0 && (
+            <div>
+              <h2 className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Completed</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {completed.map(g => <GoalCard key={g.id} goal={g} onEdit={setEditGoal} />)}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      <AnimatePresence>
+        {(editGoal || creating) && (
+          <GoalModal
+            goal={editGoal}
+            onClose={() => { setEditGoal(null); setCreating(false); }}
+          />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
