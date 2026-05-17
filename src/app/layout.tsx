@@ -25,13 +25,33 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
     title: "Autobee OS",
   },
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+  },
+  openGraph: {
+    title: "Autobee OS",
+    description: "Internal operating system for the Autobee startup team",
+    siteName: "Autobee OS",
+    images: [
+      {
+        url: "/icon-512.png",
+        width: 512,
+        height: 512,
+        alt: "Autobee OS Logo",
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  themeColor: "#111111",
+  themeColor: "#FFC107",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
