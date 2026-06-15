@@ -4,9 +4,10 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import {
   Moon, Sun, Download, Trash2, Keyboard, Smartphone,
-  Info, ChevronRight, Shield
+  Info, ChevronRight, Shield, Bell, User
 } from "lucide-react";
 import { useUIStore } from "@/store/useUIStore";
+import { NotificationToggle } from "@/components/NotificationToggle";
 import { useTaskStore } from "@/store/useTaskStore";
 import { useGoalStore } from "@/store/useGoalStore";
 import { useExpenseStore } from "@/store/useExpenseStore";
@@ -22,7 +23,7 @@ const SHORTCUTS = [
 ];
 
 export default function SettingsPage() {
-  const { theme, setTheme } = useUIStore();
+  const { theme, setTheme, currentUser, setCurrentUser } = useUIStore();
   const { tasks } = useTaskStore();
   const { goals } = useGoalStore();
   const { expenses } = useExpenseStore();
@@ -122,6 +123,44 @@ export default function SettingsPage() {
             </div>
           }
         />
+      </Section>
+
+      <Section title="Workspace Identity">
+        <div className="px-5 py-4 space-y-3">
+          <p className="text-xs text-muted-foreground">Select who is using this device to route notifications and log tasks correctly.</p>
+          <div className="grid grid-cols-3 gap-2">
+            {(["Sourabh", "Asher", "Subin"] as const).map((user) => {
+              const active = currentUser === user;
+              return (
+                <button
+                  key={user}
+                  onClick={() => setCurrentUser(user)}
+                  className={cn(
+                    "py-2 rounded-xl border text-xs font-semibold transition-all cursor-pointer text-center",
+                    active
+                      ? "bg-[#FFC107] border-[#FFC107] text-[#111] shadow-[0_0_12px_rgba(255,193,7,0.15)]"
+                      : "bg-white/03 border-white/05 text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                  )}
+                >
+                  {user}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </Section>
+
+      <Section title="Notifications">
+        <Row
+          icon={Bell}
+          label="Push Notifications"
+          desc="Task reminders & meeting alerts"
+          right={<NotificationToggle />}
+        />
+        <div className="px-5 py-3.5 bg-white/[0.01] text-[11px] text-muted-foreground border-t border-white/05 flex flex-col gap-1">
+          <p>⚠️ iOS: To receive notifications, you must first add this app to your Home Screen.</p>
+          <p>🔒 Testing: Notifications require a secure (HTTPS) context.</p>
+        </div>
       </Section>
 
       <Section title="Data">

@@ -9,6 +9,7 @@ import { TopBar } from "@/components/layout/TopBar";
 import { CommandPalette } from "@/components/layout/CommandPalette";
 import { QuickAdd } from "@/components/layout/QuickAdd";
 import { PageWrapper } from "@/components/layout/PageWrapper";
+import { NotificationPermission } from "@/components/NotificationPermission";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -81,6 +82,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {/* Global overlays */}
           <CommandPalette />
           <QuickAdd />
+          <NotificationPermission />
         </Providers>
       </body>
     </html>

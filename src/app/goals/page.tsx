@@ -1,15 +1,17 @@
 "use client";
 // src/app/goals/page.tsx — Goals System
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, X, Target, TrendingUp, CheckCircle2, PauseCircle } from "lucide-react";
 import { format } from "date-fns";
 import { useGoalStore } from "@/store/useGoalStore";
-import { createGoal, updateGoal, deleteGoal } from "@/lib/firestore/goals";
+import { createGoal, updateGoal, deleteGoal } from "@/lib/supabase/goals";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { Goal, GoalCategory } from "@/lib/types";
+import { fadeUp, staggerContainer } from "@/lib/animations";
+
 
 const CATEGORIES: GoalCategory[] = ["startup", "growth", "learning", "product", "finance"];
 
@@ -34,9 +36,8 @@ function GoalCard({ goal, onEdit }: { goal: Goal; onEdit: (g: Goal) => void }) {
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="rounded-2xl p-5 cursor-pointer card-hover bg-[var(--card)] border border-[var(--border)]"
+      variants={fadeUp}
+      className="rounded-2xl p-5 cursor-pointer card-hover glass"
       onClick={() => onEdit(goal)}
     >
       <div className="flex items-start justify-between mb-3">
@@ -105,7 +106,7 @@ function GoalModal({ goal, onClose }: { goal: Goal | null; onClose: () => void }
       <motion.div
         initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }}
         transition={{ type: "spring", damping: 26, stiffness: 280 }}
-        className="w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-6 space-y-4"
+        className="w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-6 space-y-4 glass-strong"
         style={{ background: "#161616", border: "1px solid rgba(255,255,255,0.09)" }}
         onClick={e => e.stopPropagation()}
       >
@@ -164,7 +165,7 @@ function GoalModal({ goal, onClose }: { goal: Goal | null; onClose: () => void }
         <div className="flex gap-3">
           {goal && (
             <button
-              onClick={async () => { await deleteGoal(goal.id, goal.title); onClose(); }}
+              onClick={async () => { await deleteGoal(goal.id); onClose(); }}
               className="px-4 py-2.5 rounded-xl bg-red-500/10 text-red-400 text-sm hover:bg-red-500/20 transition-colors"
             >
               Delete
@@ -183,10 +184,21 @@ function GoalModal({ goal, onClose }: { goal: Goal | null; onClose: () => void }
 }
 
 export default function GoalsPage() {
-  const { goals, loading } = useGoalStore();
+  const { goals, loading, subscribeToGoals } = useGoalStore();
   const [editGoal, setEditGoal] = useState<Goal | null>(null);
   const [creating, setCreating] = useState(false);
   const [filterCat, setFilterCat] = useState<GoalCategory | "all">("all");
+  const [showSkeleton, setShowSkeleton] = useState(true);
+
+  useEffect(() => {
+    const t = setTimeout(() => setShowSkeleton(false), 800);
+    return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    const unsub = subscribeToGoals();
+    return unsub;
+  }, [subscribeToGoals]);
 
   const filtered = filterCat === "all" ? goals : goals.filter(g => g.category === filterCat);
   const active = filtered.filter(g => g.status === "active");
@@ -196,17 +208,23 @@ export default function GoalsPage() {
   const avgProgress = goals.length > 0 ? Math.round(goals.reduce((s, g) => s + g.progress, 0) / goals.length) : 0;
 
   return (
-    <div className="px-4 py-6 max-w-5xl mx-auto">
+    <motion.div
+      initial="hidden"
+      animate="show"
+      variants={staggerContainer}
+      className="px-4 py-6 max-w-5xl mx-auto"
+    >
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-bold">Goals</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
+          <h1 className="text-2xl font-semibold tracking-tight">Goals</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
             {goals.filter(g => g.status === "active").length} active · {avgProgress}% avg progress
           </p>
         </div>
         <motion.button
-          whileTap={{ scale: 0.92 }}
+          whileTap={{ scale: 0.96 }}
+          whileHover={{ scale: 1.02 }}
           onClick={() => setCreating(true)}
           className="flex items-center gap-1.5 px-3 py-2 rounded-xl bee-gradient text-[#111] text-sm font-semibold"
         >
@@ -233,39 +251,57 @@ export default function GoalsPage() {
         ))}
       </div>
 
-      {loading ? (
+      {loading && showSkeleton ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-44 rounded-2xl" />)}
         </div>
-      ) : filtered.length === 0 ? (
-        <div className="text-center py-20">
-          <Target className="w-12 h-12 text-[#FFC107] mx-auto mb-3 opacity-40" />
-          <p className="text-muted-foreground text-sm">No goals yet. Set your first goal.</p>
+      ) : (!loading || !showSkeleton) && filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <div className="w-16 h-16 rounded-full glass-md flex items-center justify-center mb-4">
+            <Target className="w-8 h-8 text-amber-400/60" />
+          </div>
+          <h3 className="text-lg font-medium mb-2">No goals yet</h3>
+          <p className="text-sm text-muted-foreground mb-6">Set your first goal to start tracking progress</p>
+          <button onClick={() => setCreating(true)} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bee-gradient text-[#111] text-sm font-semibold shadow-md">
+            + New Goal
+          </button>
         </div>
       ) : (
         <div className="space-y-6">
           {active.length > 0 && (
             <div>
-              <h2 className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Active</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {active.map(g => <GoalCard key={g.id} goal={g} onEdit={setEditGoal} />)}
-              </div>
+              <h2 className="text-xs font-medium uppercase tracking-widest text-muted-foreground/60 mb-3">Active</h2>
+              <motion.div variants={staggerContainer} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {active.map(g => (
+                  <motion.div key={g.id} variants={fadeUp}>
+                    <GoalCard goal={g} onEdit={setEditGoal} />
+                  </motion.div>
+                ))}
+              </motion.div>
             </div>
           )}
           {paused.length > 0 && (
             <div>
-              <h2 className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Paused</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {paused.map(g => <GoalCard key={g.id} goal={g} onEdit={setEditGoal} />)}
-              </div>
+              <h2 className="text-xs font-medium uppercase tracking-widest text-muted-foreground/60 mb-3">Paused</h2>
+              <motion.div variants={staggerContainer} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {paused.map(g => (
+                  <motion.div key={g.id} variants={fadeUp}>
+                    <GoalCard goal={g} onEdit={setEditGoal} />
+                  </motion.div>
+                ))}
+              </motion.div>
             </div>
           )}
           {completed.length > 0 && (
             <div>
-              <h2 className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Completed</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {completed.map(g => <GoalCard key={g.id} goal={g} onEdit={setEditGoal} />)}
-              </div>
+              <h2 className="text-xs font-medium uppercase tracking-widest text-muted-foreground/60 mb-3">Completed</h2>
+              <motion.div variants={staggerContainer} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {completed.map(g => (
+                  <motion.div key={g.id} variants={fadeUp}>
+                    <GoalCard goal={g} onEdit={setEditGoal} />
+                  </motion.div>
+                ))}
+              </motion.div>
             </div>
           )}
         </div>
@@ -279,6 +315,6 @@ export default function GoalsPage() {
           />
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }

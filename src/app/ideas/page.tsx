@@ -5,10 +5,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Plus, X, Pin, Search, Lightbulb, Rocket, Cpu, FlaskConical, AlertTriangle, MessageSquare } from "lucide-react";
 import { format } from "date-fns";
 import { useIdeaStore } from "@/store/useIdeaStore";
-import { createIdea, updateIdea, deleteIdea } from "@/lib/firestore/ideas";
+import { createIdea, updateIdea, deleteIdea } from "@/lib/supabase/ideas";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { Idea, IdeaCategory } from "@/lib/types";
+import { fadeUp, staggerContainer } from "@/lib/animations";
+
 
 const CAT_CONFIG: Record<IdeaCategory, { label: string; color: string; icon: React.ElementType }> = {
   startup:  { label: "Startup",  color: "#FFC107", icon: Rocket },
@@ -37,9 +39,8 @@ function IdeaCard({ idea, onEdit }: { idea: Idea; onEdit: (i: Idea) => void }) {
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, scale: 0.97 }}
-      animate={{ opacity: 1, scale: 1 }}
-      className="rounded-2xl p-4 cursor-pointer card-hover bg-[var(--card)] border border-[var(--border)] relative group"
+      variants={fadeUp}
+      className="rounded-2xl p-4 cursor-pointer card-hover glass relative group"
       onClick={() => onEdit(idea)}
     >
       {/* Pin button */}
@@ -124,7 +125,7 @@ function IdeaModal({ idea, onClose }: { idea: Idea | null; onClose: () => void }
       <motion.div
         initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }}
         transition={{ type: "spring", damping: 26, stiffness: 280 }}
-        className="w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-6 space-y-4"
+        className="w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-6 space-y-4 glass-strong"
         style={{ background: "#161616", border: "1px solid rgba(255,255,255,0.09)" }}
         onClick={e => e.stopPropagation()}
       >
@@ -174,7 +175,7 @@ function IdeaModal({ idea, onClose }: { idea: Idea | null; onClose: () => void }
         <div className="flex gap-3">
           {idea && (
             <button
-              onClick={async () => { await deleteIdea(idea.id, idea.title); onClose(); }}
+              onClick={async () => { await deleteIdea(idea.id); onClose(); }}
               className="px-4 py-2.5 rounded-xl bg-red-500/10 text-red-400 text-sm"
             >
               Delete
@@ -207,15 +208,21 @@ export default function IdeasPage() {
   }, [ideas, search, filterCat]);
 
   return (
-    <div className="px-4 py-6 max-w-5xl mx-auto">
+    <motion.div
+      initial="hidden"
+      animate="show"
+      variants={staggerContainer}
+      className="px-4 py-6 max-w-5xl mx-auto"
+    >
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-bold">Ideas Vault</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">{ideas.length} ideas captured</p>
+          <h1 className="text-2xl font-semibold tracking-tight">Ideas Vault</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">{ideas.length} ideas captured</p>
         </div>
         <motion.button
-          whileTap={{ scale: 0.92 }}
+          whileTap={{ scale: 0.96 }}
+          whileHover={{ scale: 1.02 }}
           onClick={() => setCreating(true)}
           className="flex items-center gap-1.5 px-3 py-2 rounded-xl bee-gradient text-[#111] text-sm font-semibold"
         >
@@ -263,13 +270,13 @@ export default function IdeasPage() {
           <p className="text-muted-foreground text-sm">No ideas yet. Capture your first one!</p>
         </div>
       ) : (
-        <div className="columns-1 sm:columns-2 lg:columns-3 gap-4">
+        <motion.div variants={staggerContainer} initial="hidden" animate="show" className="columns-1 sm:columns-2 lg:columns-3 gap-4">
           {filtered.map(idea => (
-            <div key={idea.id} className="mb-4 break-inside-avoid">
+            <motion.div key={idea.id} variants={fadeUp} className="mb-4 break-inside-avoid">
               <IdeaCard idea={idea} onEdit={setEditIdea} />
-            </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       )}
 
       <AnimatePresence>
@@ -280,6 +287,6 @@ export default function IdeasPage() {
           />
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }

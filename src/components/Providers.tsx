@@ -6,37 +6,48 @@ import { useTaskStore } from "@/store/useTaskStore";
 import { useGoalStore } from "@/store/useGoalStore";
 import { useIdeaStore } from "@/store/useIdeaStore";
 import { useExpenseStore } from "@/store/useExpenseStore";
-import { subscribeTasks } from "@/lib/firestore/tasks";
-import { subscribeGoals } from "@/lib/firestore/goals";
-import { subscribeIdeas } from "@/lib/firestore/ideas";
-import { subscribeExpenses } from "@/lib/firestore/expenses";
+import { useMeetingStore } from "@/store/useMeetingStore";
+import { useIncomeStore } from "@/store/useIncomeStore";
+import { usePartnerStore } from "@/store/usePartnerStore";
+import { useDocumentStore } from "@/store/useDocumentStore";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const { theme } = useUIStore();
-  const { setTasks } = useTaskStore();
-  const { setGoals } = useGoalStore();
-  const { setIdeas } = useIdeaStore();
-  const { setExpenses } = useExpenseStore();
 
   // Apply theme to document
   useEffect(() => {
     document.documentElement.classList.toggle("light", theme === "light");
   }, [theme]);
 
-  // Subscribe to all Firestore collections on mount
+  // Load current user from localStorage on mount
   useEffect(() => {
-    const unsubTasks = subscribeTasks(setTasks);
-    const unsubGoals = subscribeGoals(setGoals);
-    const unsubIdeas = subscribeIdeas(setIdeas);
-    const unsubExpenses = subscribeExpenses(setExpenses);
+    if (typeof window !== "undefined") {
+      const storedUser = localStorage.getItem("autobee_current_user");
+      if (storedUser && ["Sourabh", "Asher", "Subin"].includes(storedUser)) {
+        useUIStore.getState().setCurrentUser(storedUser as any);
+      }
+    }
+  }, []);
+
+  // Subscribe to all Supabase real-time channels on mount
+  useEffect(() => {
+    const unsubs = [
+      useTaskStore.getState().subscribeToTasks(),
+      useGoalStore.getState().subscribeToGoals(),
+      useIdeaStore.getState().subscribeToIdeas(),
+      useExpenseStore.getState().subscribeToExpenses(),
+      useMeetingStore.getState().subscribeToMeetings(),
+      useIncomeStore.getState().subscribeToIncome(),
+      usePartnerStore.getState().subscribeToPartners(),
+      useDocumentStore.getState().subscribeToDocuments(),
+    ];
+    
     return () => {
-      unsubTasks();
-      unsubGoals();
-      unsubIdeas();
-      unsubExpenses();
+      unsubs.forEach(fn => fn());
     };
-  }, [setTasks, setGoals, setIdeas, setExpenses]);
+  }, []);
+
 
   return (
     <TooltipProvider>

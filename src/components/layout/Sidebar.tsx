@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, CheckSquare, Target, Lightbulb,
   DollarSign, Bot, BarChart3, Settings, ChevronLeft,
-  ChevronRight
+  ChevronRight, Calendar, Handshake, FolderLock
 } from "lucide-react";
 import { useUIStore } from "@/store/useUIStore";
 import { cn } from "@/lib/utils";
@@ -17,9 +17,12 @@ const NAV = [
   { href: "/tasks",     label: "Tasks",         icon: CheckSquare },
   { href: "/goals",     label: "Goals",         icon: Target },
   { href: "/ideas",     label: "Ideas Vault",   icon: Lightbulb },
+  { href: "/meetings",  label: "Meetings",      icon: Calendar },
+  { href: "/partners",  label: "Partners",      icon: Handshake },
   { href: "/money",     label: "Money",         icon: DollarSign },
   { href: "/ai",        label: "AI Assistant",  icon: Bot },
   { href: "/insights",  label: "Insights",      icon: BarChart3 },
+  { href: "/vault",     label: "Vault",         icon: FolderLock },
   { href: "/settings",  label: "Settings",      icon: Settings },
 ];
 
@@ -83,18 +86,29 @@ export function Sidebar() {
           {NAV.map(({ href, label, icon: Icon }) => {
             const active = pathname === href;
             return (
-              <Link key={href} href={href} onClick={() => { if(window.innerWidth < 768) setSidebarOpen(false) }}>
+              <Link key={href} href={href} onClick={() => { if(window.innerWidth < 768) setSidebarOpen(false) }} className="relative block">
                 <motion.div
                   whileHover={{ x: 2 }}
-                  whileTap={{ scale: 0.97 }}
+                  whileTap={{ scale: 0.96 }}
                   className={cn(
-                    "flex items-center gap-3 px-2 py-2 rounded-lg cursor-pointer transition-all duration-150",
+                    "flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-all duration-150 relative",
                     active
-                      ? "bg-[rgba(255,193,7,0.12)] text-[#FFC107]"
-                      : "text-[var(--sidebar-foreground)] hover:bg-[rgba(255,255,255,0.05)] opacity-70 hover:opacity-100"
+                      ? "text-[#FFC107] font-semibold"
+                      : "text-[var(--sidebar-foreground)] hover:bg-white/5 opacity-70 hover:opacity-100"
                   )}
+                  style={active ? {
+                    boxShadow: "inset 3px 0 0 #FFC107, 0 0 20px rgba(255,193,7,0.08)",
+                    background: "rgba(255, 193, 7, 0.08)"
+                  } : {}}
                 >
-                  <Icon className="w-4 h-4 flex-shrink-0" strokeWidth={active ? 2.5 : 2} />
+                  {active && (
+                    <motion.div
+                      layoutId="sidebar-active-pill"
+                      className="absolute inset-0 bg-white/5 rounded-lg -z-10"
+                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                    />
+                  )}
+                  <Icon className="w-[18px] h-[18px] flex-shrink-0" strokeWidth={active ? 2.5 : 2} />
                   <AnimatePresence>
                     {sidebarOpen && (
                       <motion.span
@@ -108,13 +122,6 @@ export function Sidebar() {
                       </motion.span>
                     )}
                   </AnimatePresence>
-                  {active && (
-                    <motion.div
-                      layoutId="sidebar-active"
-                      className="absolute right-2 w-1 h-4 rounded-full bg-[#FFC107]"
-                      transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                    />
-                  )}
                 </motion.div>
               </Link>
             );

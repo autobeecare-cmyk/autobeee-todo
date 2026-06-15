@@ -4,9 +4,9 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Plus, CheckSquare, DollarSign, Lightbulb } from "lucide-react";
 import { useUIStore } from "@/store/useUIStore";
-import { createTask } from "@/lib/firestore/tasks";
-import { createExpense } from "@/lib/firestore/expenses";
-import { createIdea } from "@/lib/firestore/ideas";
+import { createTask } from "@/lib/supabase/tasks";
+import { createExpense } from "@/lib/supabase/expenses";
+import { createIdea } from "@/lib/supabase/ideas";
 import { Person, Priority, ExpenseCategory, IdeaCategory } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -14,10 +14,19 @@ export function QuickAdd() {
   const { quickAddOpen, quickAddTab, setQuickAddOpen } = useUIStore();
   const [loading, setLoading] = useState(false);
 
+  const defaultDeadline = () => {
+    const d = new Date();
+    d.setDate(d.getDate() + 3);
+    return d.toISOString().split("T")[0];
+  };
+
   // Task state
   const [taskTitle, setTaskTitle] = useState("");
+  const [taskDescription, setTaskDescription] = useState("");
   const [taskAssignee, setTaskAssignee] = useState<Person>("Sourabh");
   const [taskPriority, setTaskPriority] = useState<Priority>("medium");
+  const [taskDeadline, setTaskDeadline] = useState(defaultDeadline());
+  const [taskTags, setTaskTags] = useState("");
 
   // Expense state
   const [expAmount, setExpAmount] = useState("");
@@ -35,19 +44,31 @@ export function QuickAdd() {
     setLoading(true);
     try {
       if (quickAddTab === "task" && taskTitle.trim()) {
+        if (!taskDeadline) {
+          alert("Deadline is required");
+          setLoading(false);
+          return;
+        }
+        const tagsArr = taskTags.trim() ? taskTags.split(",").map(t => t.trim()).filter(Boolean) : [];
         await createTask({
           title: taskTitle.trim(),
+          description: taskDescription.trim() || undefined,
           assignee: taskAssignee,
           priority: taskPriority,
           status: "todo",
-          tags: [],
+          deadline: taskDeadline,
+          tags: tagsArr,
           pinned: false,
           archived: false,
           subtasks: [],
           comments: [],
           repeat: "none",
         });
-        setTaskTitle(""); close();
+        setTaskTitle("");
+        setTaskDescription("");
+        setTaskTags("");
+        setTaskDeadline(defaultDeadline());
+        close();
       } else if (quickAddTab === "expense" && expAmount && expPurpose) {
         await createExpense({
           amount: parseFloat(expAmount),
@@ -142,25 +163,60 @@ export function QuickAdd() {
                       autoFocus
                       value={taskTitle}
                       onChange={e => setTaskTitle(e.target.value)}
-                      onKeyDown={e => e.key === "Enter" && handleSubmit()}
-                      placeholder="Task title..."
+                      placeholder="Title*"
                       className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/08 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-[rgba(255,193,7,0.4)] transition-colors"
+                      required
                     />
-                    <div className="flex gap-2">
-                      <select
-                        value={taskAssignee}
-                        onChange={e => setTaskAssignee(e.target.value as Person)}
-                        className="flex-1 px-3 py-2 rounded-xl bg-white/5 border border-white/08 text-sm text-foreground outline-none"
-                      >
-                        {PERSONS.map(p => <option key={p} value={p} className="bg-[#161616] text-[#f5f5f5]">{p}</option>)}
-                      </select>
-                      <select
-                        value={taskPriority}
-                        onChange={e => setTaskPriority(e.target.value as Priority)}
-                        className="flex-1 px-3 py-2 rounded-xl bg-white/5 border border-white/08 text-sm text-foreground outline-none"
-                      >
-                        {PRIORITIES.map(p => <option key={p.value} value={p.value} className="bg-[#161616] text-[#f5f5f5]">{p.label}</option>)}
-                      </select>
+                    <textarea
+                      value={taskDescription}
+                      onChange={e => setTaskDescription(e.target.value)}
+                      placeholder="Description"
+                      rows={2}
+                      className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/08 text-sm text-foreground placeholder:text-muted-foreground outline-none resize-none focus:border-[rgba(255,193,7,0.4)] transition-colors"
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] text-muted-foreground mb-1 block font-medium uppercase tracking-wider">Assignee</label>
+                        <select
+                          value={taskAssignee}
+                          onChange={e => setTaskAssignee(e.target.value as Person)}
+                          className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/08 text-sm text-foreground outline-none"
+                        >
+                          {PERSONS.filter(p => p !== "All").map(p => <option key={p} value={p} className="bg-[#161616] text-[#f5f5f5]">{p}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-muted-foreground mb-1 block font-medium uppercase tracking-wider">Priority</label>
+                        <select
+                          value={taskPriority}
+                          onChange={e => setTaskPriority(e.target.value as Priority)}
+                          className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/08 text-sm text-foreground outline-none"
+                        >
+                          {PRIORITIES.map(p => <option key={p.value} value={p.value} className="bg-[#161616] text-[#f5f5f5]">{p.label}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] text-muted-foreground mb-1 block font-medium uppercase tracking-wider">Deadline*</label>
+                        <input
+                          type="date"
+                          value={taskDeadline}
+                          onChange={e => setTaskDeadline(e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/08 text-sm text-foreground outline-none focus:border-[rgba(255,193,7,0.4)]"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-muted-foreground mb-1 block font-medium uppercase tracking-wider">Tags (comma sep)</label>
+                        <input
+                          type="text"
+                          value={taskTags}
+                          onChange={e => setTaskTags(e.target.value)}
+                          placeholder="e.g. design, core"
+                          className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/08 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-[rgba(255,193,7,0.4)]"
+                        />
+                      </div>
                     </div>
                   </>
                 )}
