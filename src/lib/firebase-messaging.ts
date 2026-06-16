@@ -27,6 +27,18 @@ export const requestNotificationPermission = async (userName: string): Promise<s
       return null
     }
 
+    // Force update any existing service workers to ensure they load the latest injected config
+    if ('serviceWorker' in navigator) {
+      try {
+        const regs = await navigator.serviceWorker.getRegistrations()
+        for (const reg of regs) {
+          await reg.update()
+        }
+      } catch (err) {
+        console.warn('Failed to update service worker:', err)
+      }
+    }
+
     const messaging = getMessaging(app)
     const token = await getToken(messaging, {
       vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
