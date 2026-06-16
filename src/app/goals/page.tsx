@@ -1,17 +1,16 @@
-"use client";
-// src/app/goals/page.tsx — Goals System
+"use client"; // src/app/goals/page.tsx — Goals System
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, X, Target, TrendingUp, CheckCircle2, PauseCircle } from "lucide-react";
 import { format } from "date-fns";
 import { useGoalStore } from "@/store/useGoalStore";
+import { useTaskStore } from "@/store/useTaskStore";
 import { createGoal, updateGoal, deleteGoal } from "@/lib/supabase/goals";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import type { Goal, GoalCategory } from "@/lib/types";
+import type { Goal, GoalCategory, Task } from "@/lib/types";
 import { fadeUp, staggerContainer } from "@/lib/animations";
-
 
 const CATEGORIES: GoalCategory[] = ["startup", "growth", "learning", "product", "finance"];
 
@@ -29,9 +28,15 @@ const STATUS_ICON = {
   paused: PauseCircle,
 };
 
-function GoalCard({ goal, onEdit }: { goal: Goal; onEdit: (g: Goal) => void }) {
+function GoalCard({ goal, onEdit, tasks }: { goal: Goal; onEdit: (g: Goal) => void; tasks: Task[] }) {
   const catColor = CAT_COLOR[goal.category];
   const Icon = STATUS_ICON[goal.status];
+
+  const linkedTasks = tasks.filter(t => goal.linkedTaskIds?.includes(t.id));
+  const totalTasks = goal.linkedTaskIds?.length || 0;
+  const activeTasks = linkedTasks.length;
+  const completedTasks = Math.max(0, totalTasks - activeTasks);
+  const taskProgress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
   return (
     <motion.div
@@ -66,6 +71,31 @@ function GoalCard({ goal, onEdit }: { goal: Goal; onEdit: (g: Goal) => void }) {
         <Progress value={goal.progress} className="h-2" />
       </div>
 
+      {totalTasks > 0 && (
+        <div className="mt-4 pt-3 border-t border-white/05 space-y-2" onClick={e => e.stopPropagation()}>
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+            <span className="font-semibold uppercase tracking-wider text-[9px]">Linked Tasks</span>
+            <span>{completedTasks}/{totalTasks} done</span>
+          </div>
+          
+          <Progress value={taskProgress} className="h-1 bg-white/5" />
+          
+          <div className="space-y-1 max-h-24 overflow-y-auto pr-1">
+            {linkedTasks.map(t => (
+              <div key={t.id} className="flex items-center justify-between text-[10px] bg-white/[0.01] hover:bg-white/[0.03] p-1.5 rounded-lg border border-white/[0.03]">
+                <span className="truncate flex-1 pr-2 text-foreground/80">{t.title}</span>
+                <span className={cn(
+                  "px-1 py-0.2 rounded text-[8px] uppercase font-bold",
+                  t.status === "doing" ? "bg-amber-500/10 text-amber-400" : "bg-gray-500/10 text-gray-400"
+                )}>
+                  {t.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {goal.targetDate && (
         <p className="text-[10px] text-muted-foreground mt-3">
           Target: {format(new Date(goal.targetDate), "d MMM yyyy")}
@@ -76,18 +106,28 @@ function GoalCard({ goal, onEdit }: { goal: Goal; onEdit: (g: Goal) => void }) {
 }
 
 function GoalModal({ goal, onClose }: { goal: Goal | null; onClose: () => void }) {
+  const { tasks } = useTaskStore();
   const [title, setTitle] = useState(goal?.title ?? "");
   const [desc, setDesc] = useState(goal?.description ?? "");
   const [category, setCategory] = useState<GoalCategory>(goal?.category ?? "startup");
   const [progress, setProgress] = useState(goal?.progress ?? 0);
   const [status, setStatus] = useState(goal?.status ?? "active");
   const [targetDate, setTargetDate] = useState(goal?.targetDate ?? "");
+  const [linkedTaskIds, setLinkedTaskIds] = useState<string[]>(goal?.linkedTaskIds ?? []);
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
     if (!title.trim()) return;
     setSaving(true);
-    const data = { title, description: desc, category, progress, status: status as Goal["status"], targetDate, linkedTaskIds: goal?.linkedTaskIds ?? [] };
+    const data = {
+      title,
+      description: desc,
+      category,
+      progress,
+      status: status as Goal["status"],
+      targetDate,
+      linkedTaskIds,
+    };
     if (goal) {
       await updateGoal(goal.id, data);
     } else {
@@ -99,14 +139,18 @@ function GoalModal({ goal, onClose }: { goal: Goal | null; onClose: () => void }
 
   return (
     <motion.div
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
       className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center sm:px-4"
       onClick={onClose}
     >
       <motion.div
-        initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }}
+        initial={{ opacity: 0, y: 40 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 40 }}
         transition={{ type: "spring", damping: 26, stiffness: 280 }}
-        className="w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-6 space-y-4 glass-strong"
+        className="w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-6 space-y-4 glass-strong max-h-[90vh] overflow-y-auto"
         style={{ background: "#161616", border: "1px solid rgba(255,255,255,0.09)" }}
         onClick={e => e.stopPropagation()}
       >
@@ -118,28 +162,43 @@ function GoalModal({ goal, onClose }: { goal: Goal | null; onClose: () => void }
         </div>
 
         <input
-          autoFocus value={title} onChange={e => setTitle(e.target.value)}
+          autoFocus
+          value={title}
+          onChange={e => setTitle(e.target.value)}
           placeholder="Goal title"
           className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/08 text-sm outline-none focus:border-[rgba(255,193,7,0.4)] transition-colors"
         />
+
         <textarea
-          value={desc} onChange={e => setDesc(e.target.value)}
-          placeholder="Description (optional)" rows={2}
+          value={desc}
+          onChange={e => setDesc(e.target.value)}
+          placeholder="Description (optional)"
+          rows={2}
           className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/08 text-sm outline-none resize-none"
         />
 
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="text-xs text-muted-foreground mb-1.5 block">Category</label>
-            <select value={category} onChange={e => setCategory(e.target.value as GoalCategory)}
-              className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/08 text-sm outline-none text-foreground capitalize">
-              {CATEGORIES.map(c => <option key={c} value={c} className="bg-[#161616] text-[#f5f5f5] capitalize">{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
+            <select
+              value={category}
+              onChange={e => setCategory(e.target.value as GoalCategory)}
+              className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/08 text-sm outline-none text-foreground capitalize"
+            >
+              {CATEGORIES.map(c => (
+                <option key={c} value={c} className="bg-[#161616] text-[#f5f5f5] capitalize">
+                  {c.charAt(0).toUpperCase() + c.slice(1)}
+                </option>
+              ))}
             </select>
           </div>
           <div>
             <label className="text-xs text-muted-foreground mb-1.5 block">Status</label>
-            <select value={status} onChange={e => setStatus(e.target.value as "active" | "completed" | "paused")}
-              className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/08 text-sm outline-none text-foreground">
+            <select
+              value={status}
+              onChange={e => setStatus(e.target.value as "active" | "completed" | "paused")
+              className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/08 text-sm outline-none text-foreground"
+            >
               <option value="active" className="bg-[#161616] text-[#f5f5f5]">Active</option>
               <option value="paused" className="bg-[#161616] text-[#f5f5f5]">Paused</option>
               <option value="completed" className="bg-[#161616] text-[#f5f5f5]">Completed</option>
@@ -150,32 +209,79 @@ function GoalModal({ goal, onClose }: { goal: Goal | null; onClose: () => void }
         <div>
           <label className="text-xs text-muted-foreground mb-1.5 block">Progress: {progress}%</label>
           <input
-            type="range" min={0} max={100} value={progress}
+            type="range"
+            min={0}
+            max={100}
+            value={progress}
             onChange={e => setProgress(Number(e.target.value))}
             className="w-full accent-[#FFC107]"
           />
         </div>
 
         <div>
+          <label className="text-xs text-muted-foreground mb-1.5 block">Linked Tasks</label>
+          <div className="max-h-32 overflow-y-auto space-y-1.5 p-2 rounded-xl bg-white/5 border border-white/08">
+            {tasks.length === 0 ? (
+              <p className="text-xs text-muted-foreground p-1">No active tasks available</p>
+            ) : (
+              tasks.map(task => {
+                const isLinked = linkedTaskIds.includes(task.id);
+                return (
+                  <label key={task.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/5 cursor-pointer text-xs">
+                    <input
+                      type="checkbox"
+                      checked={isLinked}
+                      onChange={() => {
+                        if (isLinked) {
+                          setLinkedTaskIds(linkedTaskIds.filter(id => id !== task.id));
+                        } else {
+                          setLinkedTaskIds([...linkedTaskIds, task.id]);
+                        }
+                      }}
+                      className="rounded border-white/20 accent-[#FFC107] text-[#111]"
+                    />
+                    <span className="truncate text-foreground/80">{task.title}</span>
+                  </label>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        <div>
           <label className="text-xs text-muted-foreground mb-1.5 block">Target Date</label>
-          <input type="date" value={targetDate} onChange={e => setTargetDate(e.target.value)}
-            className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/08 text-sm outline-none text-foreground" />
+          <input
+            type="date"
+            value={targetDate}
+            onChange={e => setTargetDate(e.target.value)}
+            className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/08 text-sm outline-none text-foreground"
+          />
         </div>
 
         <div className="flex gap-3">
           {goal && (
             <button
-              onClick={async () => { await deleteGoal(goal.id); onClose(); }}
+              onClick={async () => {
+                await deleteGoal(goal.id);
+                onClose();
+              }}
               className="px-4 py-2.5 rounded-xl bg-red-500/10 text-red-400 text-sm hover:bg-red-500/20 transition-colors"
             >
               Delete
             </button>
           )}
           <button
-            onClick={save} disabled={saving || !title.trim()}
+            onClick={save}
+            disabled={saving || !title.trim()}
             className="flex-1 py-2.5 rounded-xl bee-gradient text-[#111] font-semibold text-sm disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            {saving ? <div className="w-4 h-4 border-2 border-[#111]/30 border-t-[#111] rounded-full animate-spin" /> : (goal ? "Save" : "Create Goal")}
+            {saving ? (
+              <div className="w-4 h-4 border-2 border-[#111]/30 border-t-[#111] rounded-full animate-spin" />
+            ) : goal ? (
+              "Save"
+            ) : (
+              "Create Goal"
+            )}
           </button>
         </div>
       </motion.div>
@@ -185,6 +291,7 @@ function GoalModal({ goal, onClose }: { goal: Goal | null; onClose: () => void }
 
 export default function GoalsPage() {
   const { goals, loading, subscribeToGoals } = useGoalStore();
+  const { tasks, subscribeToTasks } = useTaskStore();
   const [editGoal, setEditGoal] = useState<Goal | null>(null);
   const [creating, setCreating] = useState(false);
   const [filterCat, setFilterCat] = useState<GoalCategory | "all">("all");
@@ -196,9 +303,13 @@ export default function GoalsPage() {
   }, []);
 
   useEffect(() => {
-    const unsub = subscribeToGoals();
-    return unsub;
-  }, [subscribeToGoals]);
+    const unsubGoals = subscribeToGoals();
+    const unsubTasks = subscribeToTasks();
+    return () => {
+      unsubGoals();
+      unsubTasks();
+    };
+  }, [subscribeToGoals, subscribeToTasks]);
 
   const filtered = filterCat === "all" ? goals : goals.filter(g => g.category === filterCat);
   const active = filtered.filter(g => g.status === "active");
@@ -214,7 +325,6 @@ export default function GoalsPage() {
       variants={staggerContainer}
       className="px-4 py-6 max-w-5xl mx-auto"
     >
-      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Goals</h1>
@@ -228,12 +338,10 @@ export default function GoalsPage() {
           onClick={() => setCreating(true)}
           className="flex items-center gap-1.5 px-3 py-2 rounded-xl bee-gradient text-[#111] text-sm font-semibold"
         >
-          <Plus className="w-4 h-4" strokeWidth={2.5} />
-          New Goal
+          <Plus className="w-4 h-4" strokeWidth={2.5} /> New Goal
         </motion.button>
       </div>
 
-      {/* Category filter */}
       <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar pb-1">
         {["all", ...CATEGORIES].map(cat => (
           <button
@@ -262,7 +370,10 @@ export default function GoalsPage() {
           </div>
           <h3 className="text-lg font-medium mb-2">No goals yet</h3>
           <p className="text-sm text-muted-foreground mb-6">Set your first goal to start tracking progress</p>
-          <button onClick={() => setCreating(true)} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bee-gradient text-[#111] text-sm font-semibold shadow-md">
+          <button
+            onClick={() => setCreating(true)}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bee-gradient text-[#111] text-sm font-semibold shadow-md"
+          >
             + New Goal
           </button>
         </div>
@@ -271,34 +382,51 @@ export default function GoalsPage() {
           {active.length > 0 && (
             <div>
               <h2 className="text-xs font-medium uppercase tracking-widest text-muted-foreground/60 mb-3">Active</h2>
-              <motion.div variants={staggerContainer} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <motion.div
+                variants={staggerContainer}
+                initial="hidden"
+                animate="show"
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+              >
                 {active.map(g => (
                   <motion.div key={g.id} variants={fadeUp}>
-                    <GoalCard goal={g} onEdit={setEditGoal} />
+                    <GoalCard goal={g} onEdit={setEditGoal} tasks={tasks} />
                   </motion.div>
                 ))}
               </motion.div>
             </div>
           )}
+
           {paused.length > 0 && (
             <div>
               <h2 className="text-xs font-medium uppercase tracking-widest text-muted-foreground/60 mb-3">Paused</h2>
-              <motion.div variants={staggerContainer} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <motion.div
+                variants={staggerContainer}
+                initial="hidden"
+                animate="show"
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+              >
                 {paused.map(g => (
                   <motion.div key={g.id} variants={fadeUp}>
-                    <GoalCard goal={g} onEdit={setEditGoal} />
+                    <GoalCard goal={g} onEdit={setEditGoal} tasks={tasks} />
                   </motion.div>
                 ))}
               </motion.div>
             </div>
           )}
+
           {completed.length > 0 && (
             <div>
               <h2 className="text-xs font-medium uppercase tracking-widest text-muted-foreground/60 mb-3">Completed</h2>
-              <motion.div variants={staggerContainer} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <motion.div
+                variants={staggerContainer}
+                initial="hidden"
+                animate="show"
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+              >
                 {completed.map(g => (
                   <motion.div key={g.id} variants={fadeUp}>
-                    <GoalCard goal={g} onEdit={setEditGoal} />
+                    <GoalCard goal={g} onEdit={setEditGoal} tasks={tasks} />
                   </motion.div>
                 ))}
               </motion.div>
@@ -311,10 +439,13 @@ export default function GoalsPage() {
         {(editGoal || creating) && (
           <GoalModal
             goal={editGoal}
-            onClose={() => { setEditGoal(null); setCreating(false); }}
+            onClose={() => {
+              setEditGoal(null);
+              setCreating(false);
+            }}
           />
         )}
       </AnimatePresence>
     </motion.div>
   );
-}
+  }
