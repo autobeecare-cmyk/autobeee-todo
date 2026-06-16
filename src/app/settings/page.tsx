@@ -57,26 +57,28 @@ export default function SettingsPage() {
   }: {
     icon: React.ElementType; label: string; desc?: string;
     action?: () => void; right?: React.ReactNode; danger?: boolean;
-  }) => (
-    <button
-      onClick={action}
-      disabled={!action}
-      className={cn(
-        "w-full flex items-center gap-4 px-5 py-4 transition-colors text-left",
-        action ? "hover:bg-white/03 cursor-pointer" : "cursor-default",
-        danger && "hover:bg-red-500/05"
-      )}
-    >
-      <div className="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center flex-shrink-0">
-        <Icon className={cn("w-4 h-4", danger ? "text-red-400" : "text-muted-foreground")} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className={cn("text-sm font-medium", danger && "text-red-400")}>{label}</p>
-        {desc && <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>}
-      </div>
-      {right ?? (action && !danger && <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />)}
-    </button>
-  );
+  }) => {
+    const Component = action ? "button" : "div";
+    return (
+      <Component
+        onClick={action}
+        className={cn(
+          "w-full flex items-center gap-4 px-5 py-4 transition-colors text-left",
+          action ? "hover:bg-white/03 cursor-pointer" : "cursor-default",
+          danger && "hover:bg-red-500/05"
+        )}
+      >
+        <div className="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center flex-shrink-0">
+          <Icon className={cn("w-4 h-4", danger ? "text-red-400" : "text-muted-foreground")} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className={cn("text-sm font-medium", danger && "text-red-400")}>{label}</p>
+          {desc && <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>}
+        </div>
+        {right ?? (action && !danger && <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />)}
+      </Component>
+    );
+  };
 
   return (
     <div className="px-4 py-6 max-w-2xl mx-auto space-y-6">

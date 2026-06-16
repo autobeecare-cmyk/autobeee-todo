@@ -159,8 +159,8 @@ export async function sendPushNotification({
             },
             webpush: {
               notification: {
-                icon: '/icons/icon-192x192.png',
-                badge: '/icons/icon-72x72.png',
+                icon: '/icon-192.png',
+                badge: '/icon-192.png',
                 requireInteraction: type === 'meeting_alert',
               },
               fcm_options: { link: '/' },
@@ -257,8 +257,8 @@ export async function sendPushNotification({
     },
     webpush: {
       notification: {
-        icon: '/icons/icon-192x192.png',
-        badge: '/icons/icon-72x72.png',
+        icon: '/icon-192.png',
+        badge: '/icon-192.png',
         requireInteraction: type === 'meeting_alert',
       },
       fcm_options: { link: '/' },

@@ -23,8 +23,8 @@ messaging.onBackgroundMessage((payload) => {
 
   self.registration.showNotification(title ?? 'Autobee OS', {
     body: body ?? '',
-    icon: '/icons/icon-192x192.png',
-    badge: '/icons/icon-72x72.png',
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
     tag: data.entity_id ?? 'autobee-notification',
     data: data,
     actions: getActions(data.type),

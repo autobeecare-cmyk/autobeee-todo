@@ -99,14 +99,14 @@ export const setupForegroundNotifications = async () => {
 
     // Show notification manually when app is open
     // (browsers don't auto-show when app is in foreground)
-    if (payload.notification) {
-      const { title, body } = payload.notification
-      new Notification(title ?? 'Autobee', {
-        body: body ?? '',
-        icon: '/icons/icon-192x192.png',
-        badge: '/icons/icon-72x72.png',
-      })
-    }
+      if (payload.notification) {
+        const { title, body } = payload.notification
+        new Notification(title ?? 'Autobee', {
+          body: body ?? '',
+          icon: '/icon-192.png',
+          badge: '/icon-192.png',
+        })
+      }
   })
 }
 
