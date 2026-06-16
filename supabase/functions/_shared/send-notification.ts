@@ -146,6 +146,7 @@ export async function sendPushNotification({
         private_key: privateKey.replace(/\\n/g, '\n'),
       });
 
+      const fcmResults: Array<{token: string; ok: boolean; result: any}> = [];
       const expiredTokens: string[] = [];
       const sendPromises = tokens.map(async (t) => {
         const payload = {
@@ -181,8 +182,12 @@ export async function sendPushNotification({
         );
 
         const result = await fcmRes.json();
-        if (!fcmRes.ok) {
-          console.warn(`FCM HTTP v1 failed for token ${t.fcm_token.slice(0, 15)}...:`, result);
+        fcmResults.push({ token: t.fcm_token.slice(0, 20) + '...', ok: fcmRes.ok, result });
+        
+        if (fcmRes.ok) {
+          console.log(`FCM v1 SUCCESS for ${t.user_name} (${t.fcm_token.slice(0, 15)}...): message=${result.name}`);
+        } else {
+          console.warn(`FCM v1 FAILED for ${t.user_name} (${t.fcm_token.slice(0, 15)}...):`, JSON.stringify(result));
           const errStatus = result.error?.status;
           if (errStatus === 'UNREGISTERED' || errStatus === 'INVALID_ARGUMENT') {
             expiredTokens.push(t.fcm_token);
@@ -228,7 +233,7 @@ export async function sendPushNotification({
         );
       }
 
-      return { success: true, method: 'v1' };
+      return { success: true, method: 'v1', fcmResults };
     } catch (err) {
       console.error('FCM HTTP v1 dispatch error:', err);
       // fallback to legacy if fcmServerKey is somehow set

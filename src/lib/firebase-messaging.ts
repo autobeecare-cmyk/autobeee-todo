@@ -27,29 +27,36 @@ export const requestNotificationPermission = async (userName: string): Promise<s
       return null
     }
 
-    // Force update any existing service workers to ensure they load the latest injected config
+    // Explicitly register our service worker so Firebase uses it
+    let swRegistration: ServiceWorkerRegistration | undefined
     if ('serviceWorker' in navigator) {
       try {
-        const regs = await navigator.serviceWorker.getRegistrations()
-        for (const reg of regs) {
-          await reg.update()
-        }
+        swRegistration = await navigator.serviceWorker.register(
+          '/firebase-messaging-sw.js',
+          { scope: '/' }
+        )
+        // Wait for the SW to be ready
+        await navigator.serviceWorker.ready
+        console.log('Service worker registered:', swRegistration.scope)
       } catch (err) {
-        console.warn('Failed to update service worker:', err)
+        console.error('Service worker registration failed:', err)
       }
     }
 
     const messaging = getMessaging(app)
     const token = await getToken(messaging, {
       vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
+      serviceWorkerRegistration: swRegistration,
     })
 
     if (token) {
+      console.log('FCM token obtained:', token.slice(0, 20) + '...')
       // Save token to Supabase
       await saveTokenToSupabase(token, userName)
       return token
     }
 
+    console.warn('No FCM token returned')
     return null
   } catch (error) {
     console.error('Error getting notification permission:', error)

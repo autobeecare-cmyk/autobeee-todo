@@ -64,7 +64,7 @@ serve(async (req) => {
     // Send to all attendees
     const attendees = meeting.attendees?.length > 0 ? meeting.attendees : ['all']
 
-    await sendPushNotification({
+    const result = await sendPushNotification({
       toUsers: attendees,
       title,
       body,
@@ -76,7 +76,7 @@ serve(async (req) => {
       fcmServerKey,
     })
 
-    return new Response(JSON.stringify({ success: true }), {
+    return new Response(JSON.stringify({ success: true, details: result }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (err: any) {

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   const swPath = join(process.cwd(), 'public', 'firebase-messaging-sw.template.js')
   let swContent = readFileSync(swPath, 'utf8')
@@ -18,6 +20,7 @@ export async function GET() {
     headers: {
       'Content-Type': 'application/javascript',
       'Service-Worker-Allowed': '/',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
     },
   })
 }
