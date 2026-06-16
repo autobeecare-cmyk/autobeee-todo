@@ -196,7 +196,7 @@ function GoalModal({ goal, onClose }: { goal: Goal | null; onClose: () => void }
             <label className="text-xs text-muted-foreground mb-1.5 block">Status</label>
             <select
               value={status}
-              onChange={e => setStatus(e.target.value as "active" | "completed" | "paused")
+              onChange={e => setStatus(e.target.value as "active" | "completed" | "paused")}
               className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/08 text-sm outline-none text-foreground"
             >
               <option value="active" className="bg-[#161616] text-[#f5f5f5]">Active</option>
@@ -448,4 +448,4 @@ export default function GoalsPage() {
       </AnimatePresence>
     </motion.div>
   );
-  }
+}
