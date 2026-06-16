@@ -18,6 +18,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { useTaskStore } from "@/store/useTaskStore";
 import { useUIStore } from "@/store/useUIStore";
+import { useMeetingStore } from "@/store/useMeetingStore";
 import {
   updateTask, deleteTask, duplicateTask, createTask, notifyTaskChange
 } from "@/lib/supabase/tasks";
@@ -51,6 +52,9 @@ const PERSONS: Person[] = ["Sourabh", "Asher", "Subin", "All"];
 function KanbanCard({ task, onEdit, onComplete }: { task: Task; onEdit: (t: Task) => void; onComplete: () => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
   const [menuOpen, setMenuOpen] = useState(false);
+  const storeDeleteTask = useTaskStore(state => state.deleteTask);
+  const meetings = useMeetingStore(state => state.meetings);
+  const linkedMeeting = task.meetingId ? meetings.find(m => m.id === task.meetingId) : null;
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -60,6 +64,8 @@ function KanbanCard({ task, onEdit, onComplete }: { task: Task; onEdit: (t: Task
 
   const p = PRIORITY_CONFIG[task.priority];
   const assigneeInitial = task.assignee ? task.assignee.charAt(0).toUpperCase() : "?";
+  
+  const isOverdue = task.deadline ? isPast(new Date(task.deadline)) && !isToday(new Date(task.deadline)) : false;
 
   return (
     <div
@@ -69,6 +75,7 @@ function KanbanCard({ task, onEdit, onComplete }: { task: Task; onEdit: (t: Task
       className={cn(
         "group rounded-xl p-3.5 cursor-pointer transition-all duration-300 relative overflow-hidden bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.04]",
         "hover:shadow-[0_8px_24px_rgba(255,193,7,0.08)] hover:border-[rgba(255,193,7,0.3)]",
+        isOverdue && "border-red-500/30 bg-red-500/[0.01] hover:border-red-500/50 shadow-[0_4px_12px_rgba(239,68,68,0.05)]",
         isDragging && "z-50 drag-overlay"
       )}
     >
@@ -98,11 +105,36 @@ function KanbanCard({ task, onEdit, onComplete }: { task: Task; onEdit: (t: Task
                <p className="text-sm font-semibold leading-snug tracking-tight text-foreground/90">
                  {task.title}
                </p>
+               {linkedMeeting && (
+                 <a
+                   href="/meetings"
+                   onClick={e => e.stopPropagation()}
+                   className="text-[9px] px-1.5 py-0.5 rounded-md font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 transition-all flex items-center gap-1 w-fit mt-1.5"
+                 >
+                   <Calendar className="w-2.5 h-2.5" />
+                   <span>Meet: {linkedMeeting.title}</span>
+                 </a>
+               )}
              </div>
-             <div className="relative flex-shrink-0 -mr-1" onClick={e => e.stopPropagation()}>
+             
+             {/* Quick Actions (Delete + Options menu) */}
+             <div className="flex items-center gap-1 flex-shrink-0 -mr-1" onClick={e => e.stopPropagation()}>
+               <button
+                 onClick={async (e) => {
+                   e.stopPropagation();
+                   if (confirm(`Are you sure you want to delete "${task.title}"?`)) {
+                     await storeDeleteTask(task.id);
+                   }
+                 }}
+                 className="p-1 rounded-lg hover:bg-red-500/10 text-muted-foreground hover:text-red-400 md:opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                 title="Delete Task"
+               >
+                 <Trash2 className="w-3.5 h-3.5" />
+               </button>
+               
                <button
                  onClick={() => setMenuOpen(!menuOpen)}
-                 className="opacity-0 group-hover:opacity-100 p-1 rounded-lg hover:bg-white/5 text-muted-foreground transition-all"
+                 className="opacity-0 group-hover:opacity-100 p-1 rounded-lg hover:bg-white/5 text-muted-foreground transition-all max-md:opacity-100"
                >
                  <MoreHorizontal className="w-3.5 h-3.5" />
                </button>
@@ -154,14 +186,36 @@ function KanbanCard({ task, onEdit, onComplete }: { task: Task; onEdit: (t: Task
               >
                 {p.label}
               </span>
+
+              {/* Status toggle button inside Kanban Card */}
+              <button
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  const nextStatus = task.status === "todo" ? "doing" : "todo";
+                  await updateTask(task.id, { status: nextStatus });
+                }}
+                className={cn(
+                  "text-[10px] px-2 py-0.5 rounded-md font-semibold border transition-all flex items-center gap-1",
+                  task.status === "todo" 
+                    ? "bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20"
+                    : "bg-gray-500/10 text-gray-400 border-gray-500/20 hover:bg-gray-500/20"
+                )}
+              >
+                {task.status === "todo" ? "▶ Start" : "⏸ Pause"}
+              </button>
               
               {task.deadline && (
                 <span className={cn(
-                  "text-[10px] flex items-center gap-1 font-medium",
-                  isPast(new Date(task.deadline)) ? "text-red-400" : "text-muted-foreground"
+                  "text-[10px] flex items-center gap-1 font-semibold px-1.5 py-0.5 rounded-md",
+                  isOverdue 
+                    ? "bg-red-500/10 text-red-400 border border-red-500/20"
+                    : isToday(new Date(task.deadline))
+                    ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                    : "text-muted-foreground"
                 )}>
-                  <Calendar className="w-3 h-3" />
+                  <Calendar className="w-3.5 h-3.5" />
                   {format(new Date(task.deadline), "MMM d")}
+                  {isOverdue && " (Overdue)"}
                 </span>
               )}
               {task.subtasks.length > 0 && (
@@ -233,51 +287,107 @@ function KanbanColumn({
 
 // ── List Row ──────────────────────────────────────────────────
 function ListRow({ task, onEdit, onComplete }: { task: Task; onEdit: (t: Task) => void; onComplete: () => void }) {
+  const storeDeleteTask = useTaskStore(state => state.deleteTask);
+  const meetings = useMeetingStore(state => state.meetings);
+  const linkedMeeting = task.meetingId ? meetings.find(m => m.id === task.meetingId) : null;
   const p = PRIORITY_CONFIG[task.priority];
   const assigneeInitial = task.assignee ? task.assignee.charAt(0).toUpperCase() : "?";
   
+  const isOverdue = task.deadline ? isPast(new Date(task.deadline)) && !isToday(new Date(task.deadline)) : false;
+
   return (
     <motion.div
       layout
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex items-center gap-4 px-4 py-3 mb-2 rounded-xl glass hover:border-[rgba(255,193,7,0.3)] transition-all cursor-pointer group"
+      className={cn(
+        "flex items-center gap-4 px-4 py-3 mb-2 rounded-xl glass hover:border-[rgba(255,193,7,0.3)] transition-all cursor-pointer group relative",
+        isOverdue && "border-red-500/30 bg-red-500/[0.01] hover:border-red-500/50"
+      )}
       onClick={() => onEdit(task)}
     >
       <button
         onClick={async (e) => { e.stopPropagation(); onComplete(); }}
-        className="text-muted-foreground hover:text-green-400 transition-colors"
+        className="text-muted-foreground hover:text-green-400 transition-colors flex-shrink-0"
       >
         <Circle className="w-4 h-4" />
       </button>
       
       <div className="flex-1 min-w-0">
-        <span className="text-sm font-semibold truncate block text-foreground/90">
-          {task.title}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold truncate text-foreground/90">
+            {task.title}
+          </span>
+          {task.pinned && <Pin className="w-3 h-3 text-[#FFC107] flex-shrink-0" />}
+        </div>
+        {linkedMeeting && (
+          <a
+            href="/meetings"
+            onClick={e => e.stopPropagation()}
+            className="text-[9px] px-1.5 py-0.2 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 transition-all flex items-center gap-1 w-fit mt-1"
+          >
+            <Calendar className="w-2.5 h-2.5" />
+            <span>Meet: {linkedMeeting.title}</span>
+          </a>
+        )}
       </div>
       
-      <div className="hidden sm:flex items-center gap-4">
-        <span className="text-[11px] font-medium px-2 py-0.5 rounded-md border" style={{ color: p.color, background: p.bg, borderColor: p.color + "40", width: '70px', textAlign: 'center' }}>
+      <div className="flex items-center gap-3.5 flex-shrink-0">
+        {/* Status toggle button inside row */}
+        <button
+          onClick={async (e) => {
+            e.stopPropagation();
+            const nextStatus = task.status === "todo" ? "doing" : "todo";
+            await updateTask(task.id, { status: nextStatus });
+          }}
+          className={cn(
+            "text-[10px] px-2 py-0.5 rounded-md font-semibold border transition-all flex items-center gap-1",
+            task.status === "todo" 
+              ? "bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20"
+              : "bg-gray-500/10 text-gray-400 border-gray-500/20 hover:bg-gray-500/20"
+          )}
+        >
+          {task.status === "todo" ? "▶ Start" : "⏸ Pause"}
+        </button>
+
+        <span className="hidden sm:inline-block text-[11px] font-medium px-2 py-0.5 rounded-md border" style={{ color: p.color, background: p.bg, borderColor: p.color + "40", width: '70px', textAlign: 'center' }}>
           {p.label.split(" ")[1]}
         </span>
         
-        <div className="flex items-center gap-1.5 w-20">
+        <div className="hidden sm:flex items-center gap-1.5 w-20">
           <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-[#111] bee-gradient">
             {assigneeInitial}
           </div>
           <span className="text-xs text-muted-foreground truncate">{task.assignee}</span>
         </div>
         
-        <span className="text-[11px] text-muted-foreground w-16 text-center capitalize bg-white/5 rounded-md py-1 border border-white/5">{task.status}</span>
+        <span className="hidden sm:inline-block text-[11px] text-muted-foreground w-16 text-center capitalize bg-white/5 rounded-md py-1 border border-white/5">{task.status}</span>
         
         {task.deadline ? (
-          <span className={cn("text-xs w-16 text-right font-medium", isPast(new Date(task.deadline)) ? "text-red-400" : "text-muted-foreground")}>
+          <span className={cn(
+            "text-xs w-16 text-right font-medium",
+            isOverdue ? "text-red-400 font-bold" : isToday(new Date(task.deadline)) ? "text-amber-400" : "text-muted-foreground"
+          )}>
             {format(new Date(task.deadline), "d MMM")}
+            {isOverdue && " ⚠️"}
           </span>
         ) : (
-          <span className="text-xs w-16 text-right text-muted-foreground/30">-</span>
+          <span className="text-xs w-16 text-right text-muted-foreground/30 hidden sm:inline-block">-</span>
         )}
+
+        {/* Quick delete trash button */}
+        <button
+          onClick={async (e) => {
+            e.stopPropagation();
+            if (confirm(`Are you sure you want to delete "${task.title}"?`)) {
+              await storeDeleteTask(task.id);
+            }
+          }}
+          className="p-1 rounded-lg hover:bg-red-500/10 text-muted-foreground hover:text-red-400 md:opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+          title="Delete Task"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
       </div>
     </motion.div>
   );
@@ -582,6 +692,13 @@ export default function TasksPage() {
   useEffect(() => {
     fetchCompletedToday();
   }, [tasks]);
+
+  useEffect(() => {
+    const unsubMeetings = useMeetingStore.getState().subscribeToMeetings();
+    return () => {
+      unsubMeetings();
+    };
+  }, []);
 
   const filtered = useMemo(() => {
     let t = tasks.filter(x => x.status !== "done"); // Done columns are removed

@@ -16,6 +16,7 @@ export function mapTaskFromDb(dbTask: any): Task {
     repeat: dbTask.repeat_interval || "none",
     pinned: dbTask.is_pinned || false,
     archived: false,
+    meetingId: dbTask.meeting_id || undefined,
     createdAt: dbTask.created_at,
     updatedAt: dbTask.updated_at,
   };
@@ -34,6 +35,7 @@ export function mapTaskToDb(task: Partial<Task>): any {
   if (task.comments !== undefined) dbTask.comments = task.comments;
   if (task.repeat !== undefined) dbTask.repeat_interval = task.repeat;
   if (task.pinned !== undefined) dbTask.is_pinned = task.pinned;
+  if (task.meetingId !== undefined) dbTask.meeting_id = task.meetingId || null;
   return dbTask;
 }
 

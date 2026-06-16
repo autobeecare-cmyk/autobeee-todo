@@ -13,6 +13,7 @@ export function mapMeetingFromDb(dbMeeting: any): Meeting {
     attendees: dbMeeting.attendees || [],
     status: dbMeeting.status || "upcoming",
     notes: dbMeeting.notes || undefined,
+    agenda: dbMeeting.agenda || [],
     createdBy: dbMeeting.created_by,
     createdAt: dbMeeting.created_at,
     updatedAt: dbMeeting.updated_at,
@@ -30,6 +31,7 @@ export function mapMeetingToDb(meeting: Partial<Meeting>): any {
   if (meeting.attendees !== undefined) dbMeeting.attendees = meeting.attendees;
   if (meeting.status !== undefined) dbMeeting.status = meeting.status;
   if (meeting.notes !== undefined) dbMeeting.notes = meeting.notes || null;
+  if (meeting.agenda !== undefined) dbMeeting.agenda = meeting.agenda;
   if (meeting.createdBy !== undefined) dbMeeting.created_by = meeting.createdBy;
   return dbMeeting;
 }

@@ -40,6 +40,7 @@ export interface Task {
   subtasks: Subtask[];
   comments: TaskComment[];
   repeat: RepeatInterval;
+  meetingId?: string;
 }
 
 export interface Goal {
@@ -115,9 +116,16 @@ export interface Meeting {
   attendees: Person[];
   status: "upcoming" | "completed" | "cancelled";
   notes?: string;
+  agenda?: MeetingAgendaItem[];
   createdBy: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface MeetingAgendaItem {
+  id: string;
+  text: string;
+  completed: boolean;
 }
 
 export type IncomeCategory = "Client" | "Investment" | "Grant" | "Loan" | "Revenue" | "Other";
