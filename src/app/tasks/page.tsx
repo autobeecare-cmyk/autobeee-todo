@@ -19,7 +19,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { useTaskStore } from "@/store/useTaskStore";
 import { useUIStore } from "@/store/useUIStore";
 import {
-  updateTask, deleteTask, duplicateTask, createTask
+  updateTask, deleteTask, duplicateTask, createTask, notifyTaskChange
 } from "@/lib/supabase/tasks";
 import { logActivity } from "@/lib/supabase/activity";
 import { supabase } from "@/lib/supabase";
@@ -620,6 +620,13 @@ export default function TasksPage() {
         entityId: task.id,
         entityType: "task",
         description: `Task "${task.title}" completed`
+      });
+      // Send completion notification
+      await notifyTaskChange('completed', {
+        id: task.id,
+        title: task.title,
+        assignee: task.assignee,
+        deadline: task.deadline,
       });
       // 2. Hard delete task (optimistic update via store)
       await storeDeleteTask(task.id);
