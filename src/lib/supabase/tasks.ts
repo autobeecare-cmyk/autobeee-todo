@@ -37,6 +37,36 @@ export function mapTaskToDb(task: Partial<Task>): any {
   return dbTask;
 }
 
+// Send notification when task changes
+export const notifyTaskChange = async (
+  type: 'created' | 'assigned' | 'completed' | 'updated',
+  task: any
+) => {
+  try {
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/notify-task`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({ type, task }),
+      }
+    )
+    if (!res.ok) {
+      const text = await res.text()
+      console.error('Notify task function error:', res.status, text)
+    } else {
+      const data = await res.json()
+      console.log('Notify task function succeeded:', data)
+    }
+  } catch (error) {
+    console.error('Failed to send task notification:', error)
+    // Don't throw — notification failure shouldn't break the app
+  }
+}
+
 export const getTasks = async () => {
   const { data, error } = await supabase
     .from("tasks")
@@ -54,6 +84,7 @@ export const createTask = async (task: Omit<Task, "id" | "createdAt" | "updatedA
     .select()
     .single();
   if (error) throw error;
+  await notifyTaskChange('created', data);
   return mapTaskFromDb(data);
 };
 
@@ -66,6 +97,9 @@ export const updateTask = async (id: string, updates: Partial<Task>) => {
     .select()
     .single();
   if (error) throw error;
+  // Detect if task was just completed
+  const notifType = updates.status === 'done' ? 'completed' : 'updated';
+  await notifyTaskChange(notifType, data);
   return mapTaskFromDb(data);
 };
 
