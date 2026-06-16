@@ -1,15 +1,15 @@
 // Firebase messaging service worker
 // This handles push notifications when the app is closed or in background
 
-importScripts('https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js')
-importScripts('https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js')
+importScripts('https://www.gstatic.com/firebasejs/11.8.0/firebase-app-compat.js')
+importScripts('https://www.gstatic.com/firebasejs/11.8.0/firebase-messaging-compat.js')
 
 firebase.initializeApp({
-  apiKey: self.FIREBASE_API_KEY || '__FIREBASE_API_KEY__',
-  authDomain: self.FIREBASE_AUTH_DOMAIN || '__FIREBASE_AUTH_DOMAIN__',
-  projectId: self.FIREBASE_PROJECT_ID || '__FIREBASE_PROJECT_ID__',
-  messagingSenderId: self.FIREBASE_MESSAGING_SENDER_ID || '__FIREBASE_MESSAGING_SENDER_ID__',
-  appId: self.FIREBASE_APP_ID || '__FIREBASE_APP_ID__',
+  apiKey: '__FIREBASE_API_KEY__',
+  authDomain: '__FIREBASE_AUTH_DOMAIN__',
+  projectId: '__FIREBASE_PROJECT_ID__',
+  messagingSenderId: '__FIREBASE_MESSAGING_SENDER_ID__',
+  appId: '__FIREBASE_APP_ID__',
 })
 
 const messaging = firebase.messaging()
