@@ -3,7 +3,7 @@ import { readFileSync } from 'fs'
 import { join } from 'path'
 
 export async function GET() {
-  const swPath = join(process.cwd(), 'public', 'firebase-messaging-sw.js')
+  const swPath = join(process.cwd(), 'public', 'firebase-messaging-sw.template.js')
   let swContent = readFileSync(swPath, 'utf8')
 
   // Inject environment variables into service worker

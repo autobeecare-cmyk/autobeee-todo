@@ -49,7 +49,7 @@ export const notifyMeetingChange = async (
   meeting: any
 ) => {
   try {
-    await fetch(
+    const res = await fetch(
       `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/notify-meeting`,
       {
         method: 'POST',
@@ -60,6 +60,13 @@ export const notifyMeetingChange = async (
         body: JSON.stringify({ type, meeting }),
       }
     )
+    if (!res.ok) {
+      const text = await res.text()
+      console.error('Notify meeting function returned error status:', res.status, text)
+    } else {
+      const data = await res.json()
+      console.log('Notify meeting function succeeded:', data)
+    }
   } catch (error) {
     console.error('Failed to send meeting notification:', error)
     // Don't throw — notification failure shouldn't break the app
