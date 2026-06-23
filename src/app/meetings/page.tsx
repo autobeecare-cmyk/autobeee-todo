@@ -642,16 +642,22 @@ export default function MeetingsPage() {
 
   // Split upcoming vs past
   const upcomingMeetings = useMemo(() => {
+    const twelveHoursAgo = new Date(now.getTime() - 12 * 60 * 60 * 1000);
     return meetings
-      .filter(m => isAfter(parseISO(m.scheduledAt), now))
+      .filter(m => isAfter(parseISO(m.scheduledAt), twelveHoursAgo))
       .sort((a, b) => parseISO(a.scheduledAt).getTime() - parseISO(b.scheduledAt).getTime());
-  }, [meetings]);
+  }, [meetings, now]);
 
   const pastMeetings = useMemo(() => {
+    const twelveHoursAgo = new Date(now.getTime() - 12 * 60 * 60 * 1000);
     return meetings
-      .filter(m => isBefore(parseISO(m.scheduledAt), now))
+      .filter(m => isBefore(parseISO(m.scheduledAt), twelveHoursAgo))
       .sort((a, b) => parseISO(b.scheduledAt).getTime() - parseISO(a.scheduledAt).getTime());
-  }, [meetings]);
+  }, [meetings, now]);
+
+  const upcomingCount = useMemo(() => {
+    return meetings.filter(m => isAfter(parseISO(m.scheduledAt), now)).length;
+  }, [meetings, now]);
 
   return (
     <motion.div
@@ -668,7 +674,7 @@ export default function MeetingsPage() {
             Meetings
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {upcomingMeetings.length} upcoming meetings scheduled
+            {upcomingCount} upcoming meetings scheduled
           </p>
         </div>
         <motion.button
@@ -691,11 +697,11 @@ export default function MeetingsPage() {
         <div className="space-y-6">
           {/* Upcoming Section */}
           <div className="space-y-3">
-            <h2 className="text-xs font-medium uppercase tracking-widest text-muted-foreground/60 px-1">Upcoming Meetings</h2>
+            <h2 className="text-xs font-medium uppercase tracking-widest text-muted-foreground/60 px-1">Upcoming & Recent</h2>
             {upcomingMeetings.length === 0 ? (
               <div className="text-center py-12 border border-dashed border-white/[0.05] rounded-2xl">
                 <Calendar className="w-8 h-8 text-[#FFC107] mx-auto mb-2 opacity-40" />
-                <p className="text-sm text-muted-foreground">No upcoming meetings. Click Schedule to plan one.</p>
+                <p className="text-sm text-muted-foreground">No upcoming or recent meetings. Click Schedule to plan one.</p>
               </div>
             ) : (
               <motion.div variants={staggerContainer} initial="hidden" animate="show" className="grid grid-cols-1 md:grid-cols-2 gap-4">
