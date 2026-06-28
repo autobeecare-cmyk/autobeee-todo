@@ -10,6 +10,7 @@ import { useMeetingStore } from "@/store/useMeetingStore";
 import { useIncomeStore } from "@/store/useIncomeStore";
 import { usePartnerStore } from "@/store/usePartnerStore";
 import { useDocumentStore } from "@/store/useDocumentStore";
+import { useRoadmapStore } from "@/store/useRoadmapStore";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -41,6 +42,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       useIncomeStore.getState().subscribeToIncome(),
       usePartnerStore.getState().subscribeToPartners(),
       useDocumentStore.getState().subscribeToDocuments(),
+      useRoadmapStore.getState().subscribeToRoadmapChanges(),
     ];
     
     return () => {

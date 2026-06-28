@@ -8,16 +8,18 @@ import {
   ArrowRight, Plus, AlertCircle, DollarSign, Calendar, RefreshCw, Check,
   Car, Plane, Megaphone, Utensils, Users as UsersIcon, Code, Repeat, Laptop, Cpu, Briefcase, HelpCircle
 } from "lucide-react";
-import { Handshake } from "lucide-react";
+import { Handshake, Activity, UserPlus, Milestone } from "lucide-react";
 import Link from "next/link";
 import { useTaskStore } from "@/store/useTaskStore";
 import { useGoalStore } from "@/store/useGoalStore";
 import { useExpenseStore } from "@/store/useExpenseStore";
 import { useMeetingStore } from "@/store/useMeetingStore";
 import { usePartnerStore } from "@/store/usePartnerStore";
+import { useRoadmapStore } from "@/store/useRoadmapStore";
 import { useUIStore } from "@/store/useUIStore";
 import { logActivity } from "@/lib/supabase/activity";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import type { Task, Expense } from "@/lib/types";
 import { fadeUp, staggerContainer, taskComplete } from "@/lib/animations";
@@ -66,6 +68,43 @@ export default function Dashboard() {
 
   const now = new Date();
   const greeting = now.getHours() < 12 ? "Good morning" : now.getHours() < 17 ? "Good afternoon" : "Good evening";
+
+  // Roadmap hooks & memos
+  const { phases, objectives, milestones, hiring, finance } = useRoadmapStore();
+
+  const overallProgress = useMemo(() => {
+    if (phases.length === 0) return 0;
+    return Math.round(phases.reduce((sum, p) => sum + p.completionPercentage, 0) / phases.length);
+  }, [phases]);
+
+  const activePhase = useMemo(() => {
+    return phases.find(p => p.status === "active") || phases[0];
+  }, [phases]);
+
+  const hiringStats = useMemo(() => {
+    if (!activePhase) return { filled: 0, total: 0 };
+    const pRoles = hiring.filter(h => h.phaseId === activePhase.id);
+    const filled = pRoles.filter(h => h.status === "filled").length;
+    return { filled, total: pRoles.length };
+  }, [activePhase, hiring]);
+
+  const financeStats = useMemo(() => {
+    if (!activePhase) return { target: 0, actual: 0 };
+    const pFin = finance.filter(f => f.phaseId === activePhase.id);
+    const target = pFin.reduce((sum, f) => sum + f.monthlyTarget, 0);
+    const actual = pFin.reduce((sum, f) => sum + f.actualRevenue, 0);
+    return { target, actual };
+  }, [activePhase, finance]);
+
+  const milestoneStats = useMemo(() => {
+    if (!activePhase) return { completed: 0, total: 0, next: "None" };
+    const pObjIds = objectives.filter(o => o.phaseId === activePhase.id).map(o => o.id);
+    const pMilestones = milestones.filter(m => pObjIds.includes(m.objectiveId));
+    const completed = pMilestones.filter(m => m.status === "completed").length;
+    const next = pMilestones.find(m => m.status !== "completed")?.title || "All Milestones Completed!";
+    const deadline = pMilestones.find(m => m.status !== "completed" && m.targetDate)?.targetDate || undefined;
+    return { completed, total: pMilestones.length, next, deadline };
+  }, [activePhase, objectives, milestones]);
 
   // Partners calculations
   const interestedPartnersCount = useMemo(() => 
@@ -292,6 +331,77 @@ export default function Dashboard() {
             <Link href="/tasks" className="ml-auto text-red-400 text-xs flex items-center gap-1 hover:text-red-300">
               View <ArrowRight className="w-3 h-3" />
             </Link>
+          </motion.div>
+        )}
+        {/* Executive Roadmap Strategy Widget */}
+        {phases.length > 0 && (
+          <motion.div
+            variants={fadeUp}
+            className="mt-4 p-5 rounded-2xl glass border border-white/05 grid grid-cols-1 md:grid-cols-3 gap-5 relative overflow-hidden"
+          >
+            <div className="absolute right-0 top-0 w-24 h-24 bg-[#FFC107]/05 rounded-full blur-2xl pointer-events-none" />
+
+            {/* Col 1: Overall progress ring & Phase details */}
+            <div className="flex items-center gap-4 border-r border-white/05 pr-2 last:border-0">
+              <div className="w-14 h-14 rounded-full flex items-center justify-center relative bg-white/5 flex-shrink-0">
+                <svg className="w-14 h-14 transform -rotate-90">
+                  <circle cx="28" cy="28" r="22" stroke="rgba(255,255,255,0.05)" strokeWidth="3.5" fill="transparent" />
+                  <circle cx="28" cy="28" r="22" stroke="#FFC107" strokeWidth="3.5" fill="transparent"
+                    strokeDasharray={2 * Math.PI * 22}
+                    strokeDashoffset={2 * Math.PI * 22 * (1 - overallProgress / 100)} />
+                </svg>
+                <span className="absolute text-xs font-bold text-foreground">{overallProgress}%</span>
+              </div>
+              <div className="min-w-0">
+                <span className="text-[9px] uppercase tracking-widest text-muted-foreground/60 font-semibold">Active Phase</span>
+                <h4 className="text-xs font-bold text-[#FFC107] truncate mt-0.5">{activePhase?.title || "Phase 1"}</h4>
+                <p className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">{activePhase?.description}</p>
+              </div>
+            </div>
+
+            {/* Col 2: Current & Next Milestone */}
+            <div className="flex flex-col justify-center border-r border-white/05 pr-2 last:border-0">
+              <div className="flex items-center gap-1.5 text-muted-foreground text-[10px]">
+                <Milestone className="w-3.5 h-3.5 text-blue-400" />
+                <span className="uppercase tracking-widest font-semibold text-muted-foreground/60">Milestones</span>
+                <span className="ml-auto font-bold text-white">{milestoneStats.completed}/{milestoneStats.total}</span>
+              </div>
+              <h5 className="text-[11px] font-semibold text-white/90 truncate mt-1">{milestoneStats.next}</h5>
+              {milestoneStats.deadline && (
+                <p className="text-[9px] text-muted-foreground mt-0.5">
+                  Target: {format(new Date(milestoneStats.deadline), "d MMM yyyy")}
+                </p>
+              )}
+            </div>
+
+            {/* Col 3: Revenue & Hiring status */}
+            <div className="flex flex-col justify-center gap-2">
+              {/* Revenue */}
+              {financeStats.target > 0 && (
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-[10px]">
+                    <span className="text-muted-foreground">Revenue:</span>
+                    <span className="font-semibold text-white">₹{financeStats.actual.toLocaleString()} / ₹{financeStats.target.toLocaleString()}</span>
+                  </div>
+                  <Progress value={Math.min(100, (financeStats.actual / financeStats.target) * 100)} className="h-1 bg-white/5" />
+                </div>
+              )}
+              {/* Hiring */}
+              {hiringStats.total > 0 && (
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-[10px]">
+                    <span className="text-muted-foreground">Hiring:</span>
+                    <span className="font-semibold text-white">{hiringStats.filled} / {hiringStats.total} filled</span>
+                  </div>
+                  <Progress value={(hiringStats.filled / hiringStats.total) * 100} className="h-1 bg-white/5" />
+                </div>
+              )}
+              {financeStats.target === 0 && hiringStats.total === 0 && (
+                <Link href="/roadmap" className="text-[11px] text-[#FFC107] hover:underline font-semibold flex items-center gap-1">
+                  Configure Roadmap Projections & Hiring <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              )}
+            </div>
           </motion.div>
         )}
 

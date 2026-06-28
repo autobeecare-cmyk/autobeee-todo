@@ -41,6 +41,8 @@ export interface Task {
   comments: TaskComment[];
   repeat: RepeatInterval;
   meetingId?: string;
+  milestoneId?: string;
+  epicId?: string;
 }
 
 export interface Goal {
@@ -214,6 +216,145 @@ export interface Document {
   is_shared: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export interface RoadmapPhase {
+  id: string;
+  title: string;
+  description?: string;
+  owner: Person;
+  priority: Priority;
+  startDate?: string;
+  targetDate?: string;
+  completionPercentage: number;
+  status: "locked" | "upcoming" | "active" | "completed";
+  notes?: string;
+  dependencies: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RoadmapObjective {
+  id: string;
+  phaseId: string;
+  goalId?: string;
+  title: string;
+  description?: string;
+  owner: Person;
+  priority: Priority;
+  startDate?: string;
+  targetDate?: string;
+  completionPercentage: number;
+  status: "upcoming" | "active" | "completed";
+  notes?: string;
+  dependencies: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface KeyResult {
+  id: string;
+  goalId: string;
+  title: string;
+  description?: string;
+  targetValue: number;
+  currentValue: number;
+  completionPercentage: number;
+  status: "active" | "completed" | "paused";
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RoadmapMilestone {
+  id: string;
+  objectiveId: string;
+  keyResultId?: string;
+  title: string;
+  description?: string;
+  owner: Person;
+  priority: Priority;
+  startDate?: string;
+  targetDate?: string;
+  completionPercentage: number;
+  status: "upcoming" | "active" | "completed";
+  notes?: string;
+  dependencies: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RoadmapEpic {
+  id: string;
+  milestoneId: string;
+  title: string;
+  description?: string;
+  owner: Person;
+  priority: Priority;
+  startDate?: string;
+  targetDate?: string;
+  completionPercentage: number;
+  status: "upcoming" | "active" | "completed";
+  notes?: string;
+  dependencies: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RoadmapHiring {
+  id: string;
+  phaseId: string;
+  role: string;
+  department?: string;
+  owner: Person;
+  budget: number;
+  status: "upcoming" | "open" | "filled";
+  startDate?: string;
+  targetDate?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RoadmapMarketing {
+  id: string;
+  phaseId: string;
+  campaignName: string;
+  status: "upcoming" | "active" | "completed";
+  budget: number;
+  expectedOutcome?: string;
+  deadline?: string;
+  completionPercentage: number;
+  owner: Person;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RoadmapFinance {
+  id: string;
+  phaseId: string;
+  monthName: string;
+  projectedBookings: number;
+  projectedRevenue: number;
+  actualRevenue: number;
+  monthlyTarget: number;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RoadmapRisk {
+  id: string;
+  title: string;
+  description?: string;
+  probability: "High" | "Medium" | "Low";
+  impact: "Critical" | "High" | "Medium" | "Low";
+  owner: Person;
+  mitigation?: string;
+  status: "open" | "resolved" | "critical";
+  milestoneId?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 
