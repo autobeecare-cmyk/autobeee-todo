@@ -357,5 +357,91 @@ export interface RoadmapRisk {
   updatedAt: string;
 }
 
+// ── Workday & Attendance Types ──
+export type FounderName = "Sourabh" | "Asher" | "Subin";
+export type WorkdayStatus = "working" | "completed" | "leave";
+export type WorkdayEventType = "check_in" | "check_out" | "auto_leave";
 
+export interface Workday {
+  id: string;
+  founderName: FounderName;
+  workDate: string; // YYYY-MM-DD in IST
+  checkInAt: string;
+  checkOutAt?: string | null;
+  status: WorkdayStatus;
+  progressNotes?: string | null;
+  blockerNotes?: string | null;
+  tomorrowNotes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
 
+export interface WorkdayEvent {
+  id: string;
+  workdayId: string;
+  founderName: FounderName;
+  eventType: WorkdayEventType;
+  timestamp: string;
+  metadata?: Record<string, any>;
+}
+
+// ── Shared Expense & Settlement Types ──
+export type ExpenseType = "company" | "shared_founder" | "founder_paid_company" | "founder_specific";
+export type SplitMethod = "equal" | "percentage" | "custom";
+
+export interface SplitDetail {
+  founder: FounderName;
+  amount: number;
+  percentage?: number;
+}
+
+export interface ExpenseSplit {
+  id: string;
+  expenseId: string;
+  expenseType: ExpenseType;
+  paidBy: FounderName | "Company Account";
+  splitMethod: SplitMethod;
+  splitDetails: SplitDetail[];
+  createdAt: string;
+}
+
+export interface Settlement {
+  id: string;
+  payer: FounderName;
+  payee: FounderName;
+  amount: number;
+  status: "pending" | "paid";
+  notes?: string;
+  settledAt: string;
+  confirmedBy: FounderName;
+  createdAt: string;
+}
+
+export interface FounderLedger {
+  founder: FounderName;
+  actualSpending: number;
+  transferPaid: number;
+  transferReceived: number;
+  effectiveContribution: number;
+  fairShare: number;
+  netBalance: number; // >0 means owed money, <0 means owes money
+}
+
+export interface PairwiseDebt {
+  payer: FounderName; // who owes
+  payee: FounderName; // to whom
+  amount: number;
+}
+
+// ── Notification Types ──
+export interface AppNotification {
+  id: string;
+  eventId: string;
+  title: string;
+  body: string;
+  recipient: FounderName | "All";
+  actor: FounderName | "System";
+  type: "check_in" | "check_out" | "auto_leave" | "settlement" | "expense";
+  read: boolean;
+  createdAt: string;
+}

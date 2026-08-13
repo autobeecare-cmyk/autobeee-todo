@@ -18,20 +18,22 @@ import { useIncomeStore } from "@/store/useIncomeStore";
 import { usePartnerStore } from "@/store/usePartnerStore";
 import { createExpense, updateExpense, deleteExpense } from "@/lib/supabase/expenses";
 import { createIncome, updateIncome, deleteIncome } from "@/lib/supabase/income";
+import { FounderLedgerSection } from "@/components/money/FounderLedgerSection";
+import { SharedExpenseModal } from "@/components/money/SharedExpenseModal";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { Expense, Income, Person, ExpenseCategory, IncomeCategory, PaymentMethod, IncomePaymentMethod } from "@/lib/types";
 
 const PERSONS: Person[] = ["Sourabh", "Asher", "Subin"];
 const EXP_CATEGORIES: ExpenseCategory[] = [
-  "fuel","travel","marketing","food","meetings",
-  "software","subscriptions","development","equipment","operations","misc"
+  "fuel", "travel", "marketing", "food", "meetings",
+  "software", "subscriptions", "development", "equipment", "operations", "misc"
 ];
 const INC_CATEGORIES: IncomeCategory[] = [
   "Client", "Investment", "Grant", "Loan", "Revenue", "Other"
 ];
 
-const PAYMENT_METHODS: PaymentMethod[] = ["cash","upi","card","bank"];
+const PAYMENT_METHODS: PaymentMethod[] = ["cash", "upi", "card", "bank"];
 const INC_PAYMENT_METHODS: IncomePaymentMethod[] = ["Cash", "UPI", "Card", "Bank transfer"];
 
 const CAT_COLORS: Record<string, string> = {
@@ -264,7 +266,7 @@ function IncomeModal({ incomeItem, onClose }: { incomeItem: Income | null; onClo
                 {INC_PAYMENT_METHODS.map(m => <option key={m} value={m} className="bg-[#161616] text-[#f5f5f5]">{m}</option>)}
               </select>
             </div>
-            
+
             <div className="col-span-2">
               <label className="text-xs text-muted-foreground mb-1.5 block">From Partner (Optional)</label>
               <select
@@ -426,7 +428,7 @@ export default function MoneyPage() {
     const sorted = Object.entries(totals)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value);
-    
+
     if (sorted.length <= 5) return sorted;
     const top5 = sorted.slice(0, 5);
     const otherVal = sorted.slice(5).reduce((sum, item) => sum + item.value, 0);
@@ -446,7 +448,7 @@ export default function MoneyPage() {
       d.setMonth(d.getMonth() - monthsAgo);
       const start = startOfMonth(d);
       const end = endOfMonth(d);
-      
+
       const incTotal = income
         .filter(i => isWithinInterval(parseISO(i.date), { start, end }))
         .reduce((sum, i) => sum + i.amount, 0);
@@ -522,7 +524,7 @@ export default function MoneyPage() {
       { title: "This Week", items: [] as typeof filteredLedger },
       { title: "Earlier", items: [] as typeof filteredLedger }
     ];
-    
+
     filteredLedger.forEach(item => {
       const d = item.rawDate;
       if (fnsIsToday(d)) {
@@ -662,13 +664,16 @@ export default function MoneyPage() {
         </div>
       </div>
 
+      {/* Founder Ledger & Who Owes Whom */}
+      <FounderLedgerSection />
+
       {/* SECTION 2: Money Flow Visualization (Pure CSS diagram) */}
       <div className="rounded-2xl p-5 glass space-y-4">
         <div>
           <span className="text-xs font-semibold text-muted-foreground/60 uppercase tracking-widest">Financial Flow Diagram</span>
           <p className="text-[10px] text-muted-foreground mt-0.5">Click category bars below to filter transaction ledger</p>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-7 gap-4 items-stretch relative">
           {/* Income Sources Column */}
           <div className="md:col-span-2 space-y-2 flex flex-col justify-center">
@@ -687,8 +692,8 @@ export default function MoneyPage() {
                     onClick={() => setHighlightCategory(highlightCategory === i.category ? null : i.category)}
                     className={cn(
                       "w-full text-left p-2 rounded-xl transition-all border text-xs",
-                      highlightCategory === i.category 
-                        ? "bg-green-500/20 border-green-500/60" 
+                      highlightCategory === i.category
+                        ? "bg-green-500/20 border-green-500/60"
                         : "bg-white/[0.02] border-white/05 hover:bg-white/[0.04] hover:border-white/10"
                     )}
                   >
@@ -814,7 +819,7 @@ export default function MoneyPage() {
               <BarChart data={barChartData} margin={{ top: 0, right: 0, bottom: 0, left: -25 }}>
                 <XAxis dataKey="month" tick={{ fontSize: 9, fill: "#888" }} />
                 <YAxis tick={{ fontSize: 9, fill: "#888" }} />
-                <Tooltip 
+                <Tooltip
                   contentStyle={{ background: "#161616", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "10px", fontSize: "10px" }}
                   labelStyle={{ color: "#888" }}
                 />
@@ -834,7 +839,7 @@ export default function MoneyPage() {
             <h3 className="font-bold text-sm text-foreground/90">Transaction Ledger</h3>
             <p className="text-[10px] text-muted-foreground mt-0.5">Chronological ledger registry</p>
           </div>
-          
+
           <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto">
             {/* Search */}
             <div className="relative col-span-2 sm:col-span-1">
@@ -845,7 +850,7 @@ export default function MoneyPage() {
                 className="pl-8 pr-3 py-2 rounded-xl bg-white/5 border border-white/08 text-xs outline-none w-full sm:w-32 focus:border-[rgba(255,193,7,0.3)] transition-colors text-foreground"
               />
             </div>
-            
+
             {/* Type selector */}
             <select value={filterType} onChange={e => setFilterType(e.target.value as any)}
               className="px-2 py-2 rounded-xl bg-white/5 border border-white/08 text-xs outline-none text-foreground w-full">
@@ -872,9 +877,9 @@ export default function MoneyPage() {
                 {EXP_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
               </optgroup>
             </select>
-            
+
             {highlightCategory && (
-              <button 
+              <button
                 onClick={() => setHighlightCategory(null)}
                 className="text-[9px] font-bold text-amber-500 bg-amber-500/10 border border-amber-500/20 px-2 py-2 rounded-xl flex items-center gap-1 col-span-2 sm:col-span-1 justify-center"
               >
@@ -887,7 +892,7 @@ export default function MoneyPage() {
         {/* Quick Add Row (Expense) */}
         <form onSubmit={handleQuickAdd} className="px-5 py-3 border-b border-white/05 bg-white/[0.01] flex flex-col md:flex-row md:items-center gap-3">
           <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest whitespace-nowrap">Quick Add Expense:</span>
-          
+
           <div className="grid grid-cols-2 md:flex md:flex-1 gap-2.5 items-center w-full">
             <div className="relative col-span-1 md:max-w-[120px] w-full">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs font-semibold">₹</span>
@@ -900,7 +905,7 @@ export default function MoneyPage() {
                 className="w-full pl-6 pr-2 py-2 rounded-xl bg-white/5 border border-white/08 text-xs outline-none text-foreground focus:border-[rgba(255,193,7,0.3)]"
               />
             </div>
-            
+
             <input
               value={quickPurpose}
               onChange={e => setQuickPurpose(e.target.value)}
@@ -908,7 +913,7 @@ export default function MoneyPage() {
               required
               className="col-span-1 md:flex-1 w-full px-3 py-2 rounded-xl bg-white/5 border border-white/08 text-xs outline-none text-foreground focus:border-[rgba(255,193,7,0.3)]"
             />
-            
+
             <select
               value={quickCat}
               onChange={e => setQuickCat(e.target.value as ExpenseCategory)}
@@ -916,7 +921,7 @@ export default function MoneyPage() {
             >
               {EXP_CATEGORIES.map(c => <option key={c} value={c} className="bg-[#161616] text-[#f5f5f5] capitalize">{c}</option>)}
             </select>
-            
+
             <select
               value={quickPerson}
               onChange={e => setQuickPerson(e.target.value as Person)}
@@ -925,7 +930,7 @@ export default function MoneyPage() {
               {PERSONS.map(p => <option key={p} value={p} className="bg-[#161616] text-[#f5f5f5]">{p}</option>)}
             </select>
           </div>
-          
+
           <motion.button
             whileTap={{ scale: 0.94 }}
             type="submit"
@@ -992,16 +997,16 @@ export default function MoneyPage() {
                         )}>
                           {item.type === "income" ? "+" : "-"} ₹{item.amount.toLocaleString("en-IN")}
                         </span>
-                        
+
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity max-md:hidden" onClick={e => e.stopPropagation()}>
-                          <button 
+                          <button
                             onClick={() => item.type === "income" ? setEditInc(item.rawItem) : setEditExp(item.rawItem)}
                             className="p-1 rounded hover:bg-white/5 text-muted-foreground hover:text-foreground"
                           >
                             <Edit3 className="w-3.5 h-3.5" />
                           </button>
-                          <button 
-                            onClick={async () => { if(confirm("Delete this ledger transaction?")) await handleDeleteLedgerItem(item); }}
+                          <button
+                            onClick={async () => { if (confirm("Delete this ledger transaction?")) await handleDeleteLedgerItem(item); }}
                             className="p-1 rounded hover:bg-red-500/15 text-muted-foreground hover:text-red-400"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -1020,13 +1025,13 @@ export default function MoneyPage() {
       {/* Modals Container */}
       <AnimatePresence>
         {creatingExp && (
-          <ExpenseModal
+          <SharedExpenseModal
             expense={null}
             onClose={() => setCreatingExp(false)}
           />
         )}
         {editExp && (
-          <ExpenseModal
+          <SharedExpenseModal
             expense={editExp}
             onClose={() => setEditExp(null)}
           />

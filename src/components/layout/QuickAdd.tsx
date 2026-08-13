@@ -104,9 +104,9 @@ export function QuickAdd() {
   const PERSONS: Person[] = ["Sourabh", "Asher", "Subin", "All"];
   const PRIORITIES: { value: Priority; label: string; color: string }[] = [
     { value: "urgent", label: "🔴 Urgent", color: "#ef4444" },
-    { value: "high",   label: "🟠 High",   color: "#f97316" },
+    { value: "high", label: "🟠 High", color: "#f97316" },
     { value: "medium", label: "🟡 Medium", color: "#FFC107" },
-    { value: "low",    label: "⚪ Low",    color: "#6b7280" },
+    { value: "low", label: "⚪ Low", color: "#6b7280" },
   ];
 
   return (
@@ -256,7 +256,7 @@ export function QuickAdd() {
                       onChange={e => setExpCat(e.target.value as ExpenseCategory)}
                       className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/08 text-sm text-foreground outline-none capitalize"
                     >
-                      {["fuel","travel","marketing","food","meetings","software","subscriptions","development","equipment","operations","misc"].map(c =>
+                      {["fuel", "travel", "marketing", "food", "meetings", "software", "subscriptions", "development", "equipment", "operations", "misc"].map(c =>
                         <option key={c} value={c} className="bg-[#161616] text-[#f5f5f5] capitalize">{c.charAt(0).toUpperCase() + c.slice(1)}</option>
                       )}
                     </select>
@@ -279,7 +279,7 @@ export function QuickAdd() {
                       onChange={e => setIdeaCat(e.target.value as IdeaCategory)}
                       className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/08 text-sm text-foreground outline-none"
                     >
-                      {["startup","feature","research","problem","request"].map(c =>
+                      {["startup", "feature", "research", "problem", "request"].map(c =>
                         <option key={c} value={c} className="bg-[#161616] text-[#f5f5f5] capitalize">{c.charAt(0).toUpperCase() + c.slice(1)}</option>
                       )}
                     </select>

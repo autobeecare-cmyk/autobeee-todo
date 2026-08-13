@@ -11,7 +11,11 @@ import { useIncomeStore } from "@/store/useIncomeStore";
 import { usePartnerStore } from "@/store/usePartnerStore";
 import { useDocumentStore } from "@/store/useDocumentStore";
 import { useRoadmapStore } from "@/store/useRoadmapStore";
+import { useWorkdayStore } from "@/store/useWorkdayStore";
+import { useSettlementStore } from "@/store/useSettlementStore";
+import { useNotificationStore } from "@/store/useNotificationStore";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { NotificationToast } from "@/components/notifications/NotificationToast";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const { theme } = useUIStore();
@@ -43,8 +47,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
       usePartnerStore.getState().subscribeToPartners(),
       useDocumentStore.getState().subscribeToDocuments(),
       useRoadmapStore.getState().subscribeToRoadmapChanges(),
+      useWorkdayStore.getState().initRealtime(),
+      useSettlementStore.getState().initRealtime(),
+      useNotificationStore.getState().initRealtime(),
     ];
-    
+
     return () => {
       unsubs.forEach(fn => fn());
     };
@@ -54,6 +61,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <TooltipProvider>
       {children}
+      <NotificationToast />
     </TooltipProvider>
   );
 }
+

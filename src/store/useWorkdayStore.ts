@@ -1,0 +1,85 @@
+import { create } from "zustand";
+import type { Workday, FounderName } from "@/lib/types";
+import {
+  getTodayWorkdays,
+  getAllWorkdays,
+  checkInOffice,
+  checkOutOffice,
+  subscribeWorkdays,
+  getISTDateInfo,
+} from "@/lib/supabase/workday";
+import { useUIStore } from "./useUIStore";
+
+interface WorkdayStore {
+  todayWorkdays: Workday[];
+  allWorkdays: Workday[];
+  loading: boolean;
+  error: string | null;
+  subscribed: boolean;
+
+  fetchWorkdays: () => Promise<void>;
+  checkIn: () => Promise<void>;
+  checkOut: (notes?: { progress?: string; blocker?: string; tomorrow?: string }) => Promise<void>;
+  initRealtime: () => () => void;
+}
+
+export const useWorkdayStore = create<WorkdayStore>((set, get) => ({
+  todayWorkdays: [],
+  allWorkdays: [],
+  loading: false,
+  error: null,
+  subscribed: false,
+
+  fetchWorkdays: async () => {
+    set({ loading: true, error: null });
+    try {
+      const { dateStr } = getISTDateInfo();
+      const [today, all] = await Promise.all([
+        getTodayWorkdays(dateStr),
+        getAllWorkdays(100),
+      ]);
+      set({ todayWorkdays: today, allWorkdays: all, loading: false });
+    } catch (err: any) {
+      set({ error: err.message || "Failed to fetch workdays", loading: false });
+    }
+  },
+
+  checkIn: async () => {
+    const currentUser = useUIStore.getState().currentUser as FounderName;
+    set({ loading: true, error: null });
+    try {
+      await checkInOffice(currentUser);
+      await get().fetchWorkdays();
+    } catch (err: any) {
+      set({ error: err.message || "Check-in failed", loading: false });
+      throw err;
+    }
+  },
+
+  checkOut: async (notes) => {
+    const currentUser = useUIStore.getState().currentUser as FounderName;
+    set({ loading: true, error: null });
+    try {
+      await checkOutOffice(currentUser, notes);
+      await get().fetchWorkdays();
+    } catch (err: any) {
+      set({ error: err.message || "Checkout failed", loading: false });
+      throw err;
+    }
+  },
+
+  initRealtime: () => {
+    if (get().subscribed) return () => {};
+    set({ subscribed: true });
+    get().fetchWorkdays();
+
+    const unsubscribe = subscribeWorkdays(() => {
+      get().fetchWorkdays();
+    });
+
+    return () => {
+      unsubscribe();
+      set({ subscribed: false });
+    };
+  },
+}));

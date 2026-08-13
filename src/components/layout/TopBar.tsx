@@ -1,12 +1,13 @@
 "use client";
 // src/components/layout/TopBar.tsx
 import { motion } from "framer-motion";
-import { Search, Plus, Menu } from "lucide-react";
+import { Search, Plus, Menu, User } from "lucide-react";
 import { useUIStore } from "@/store/useUIStore";
-import Link from "next/link";
+import { NotificationCenter } from "@/components/notifications/NotificationCenter";
+import type { FounderName } from "@/lib/types";
 
 export function TopBar() {
-  const { setCommandOpen, setQuickAddOpen, setSidebarOpen, sidebarOpen } = useUIStore();
+  const { setCommandOpen, setQuickAddOpen, setSidebarOpen, sidebarOpen, currentUser, setCurrentUser } = useUIStore();
 
   return (
     <header
@@ -31,6 +32,23 @@ export function TopBar() {
       </div>
 
       <div className="flex items-center gap-2 ml-auto">
+        {/* Founder Selector */}
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded-xl bg-white/5 border border-white/08">
+          <User className="w-3.5 h-3.5 text-[#FFC107]" />
+          <select
+            value={currentUser}
+            onChange={(e) => setCurrentUser(e.target.value as FounderName)}
+            className="bg-transparent text-xs font-semibold text-foreground outline-none cursor-pointer"
+          >
+            <option value="Sourabh" className="bg-[#161616] text-[#f5f5f5]">Sourabh</option>
+            <option value="Asher" className="bg-[#161616] text-[#f5f5f5]">Asher</option>
+            <option value="Subin" className="bg-[#161616] text-[#f5f5f5]">Subin</option>
+          </select>
+        </div>
+
+        {/* Notifications */}
+        <NotificationCenter />
+
         {/* Search / Command */}
         <motion.button
           whileTap={{ scale: 0.95 }}
