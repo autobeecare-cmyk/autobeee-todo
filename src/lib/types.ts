@@ -372,6 +372,12 @@ export interface Workday {
   progressNotes?: string | null;
   blockerNotes?: string | null;
   tomorrowNotes?: string | null;
+  checkInLatitude?: number | null;
+  checkInLongitude?: number | null;
+  checkInAccuracy?: number | null;
+  checkInLocationTimestamp?: string | null;
+  checkInMethod?: string | null;
+  checkOutSource?: string | null;
   createdAt: string;
   updatedAt: string;
 }

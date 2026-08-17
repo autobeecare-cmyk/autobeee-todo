@@ -279,6 +279,74 @@
   animation: float 3s ease-in-out infinite;
 }
 
+@keyframes radar-ripple {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+.animate-radar-ripple {
+  animation: radar-ripple 1.8s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+}
+
+@keyframes radar-sweep {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-radar-sweep {
+  animation: radar-sweep 2s linear infinite;
+}
+
+@keyframes active-workday-glow {
+  0%, 100% {
+    box-shadow: 0 0 25px rgba(34, 197, 94, 0.12), inset 0 0 15px rgba(34, 197, 94, 0.05);
+    border-color: rgba(34, 197, 94, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(34, 197, 94, 0.22), inset 0 0 25px rgba(34, 197, 94, 0.08);
+    border-color: rgba(34, 197, 94, 0.4);
+  }
+}
+
+.active-workday-card {
+  animation: active-workday-glow 4s ease-in-out infinite;
+}
+
+@keyframes button-glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(255, 193, 7, 0.25), 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(255, 193, 7, 0.45), 0 4px 16px rgba(255, 193, 7, 0.2);
+  }
+}
+
+.checkin-btn-glow {
+  animation: button-glow-pulse 3s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-radar-ripple,
+  .animate-radar-sweep,
+  .active-workday-card,
+  .checkin-btn-glow,
+  .pulse-glow,
+  .float,
+  .shimmer {
+    animation: none !important;
+  }
+}
+
 /* ──────────────────────────────────────────────
    Kanban drag overlay
 ────────────────────────────────────────────── */

@@ -8,7 +8,8 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url)
     const overrideDate = searchParams.get('date') || undefined
     const force = searchParams.get('force') === 'true'
-    const result = await processAttendanceReminderServer(overrideDate, force)
+    const reminderType = (searchParams.get('type') || 'auto') as '10am' | '12pm' | 'auto'
+    const result = await processAttendanceReminderServer(overrideDate, force, reminderType)
     return NextResponse.json({ success: true, ...result })
   } catch (error: any) {
     console.error('Attendance reminder execution failed:', error)
@@ -24,7 +25,8 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => ({}))
     const overrideDate = body.date || undefined
     const force = body.force === true
-    const result = await processAttendanceReminderServer(overrideDate, force)
+    const reminderType = (body.type || 'auto') as '10am' | '12pm' | 'auto'
+    const result = await processAttendanceReminderServer(overrideDate, force, reminderType)
     return NextResponse.json({ success: true, ...result })
   } catch (error: any) {
     console.error('Attendance reminder execution failed:', error)
@@ -34,3 +36,4 @@ export async function POST(req: Request) {
     )
   }
 }
+

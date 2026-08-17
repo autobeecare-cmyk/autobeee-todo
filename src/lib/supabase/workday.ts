@@ -3,7 +3,30 @@ import type { Workday, WorkdayEvent, FounderName, WorkdayStatus } from "../types
 import { logActivity } from "./activity";
 import { createNotification } from "./notifications";
 
-// Utility to get current IST date (YYYY-MM-DD) and check time deadlines
+// Non-negotiable Office Location constants
+export const AUTOBEE_OFFICE_LAT = 8.499781115980776;
+export const AUTOBEE_OFFICE_LNG = 76.95807762836998;
+export const AUTOBEE_OFFICE_RADIUS_METERS = 150;
+
+// Geodesic distance calculation via Haversine formula
+export function calculateHaversineDistance(
+  lat1: number,
+  lon1: number,
+  lat2: number = AUTOBEE_OFFICE_LAT,
+  lon2: number = AUTOBEE_OFFICE_LNG
+): number {
+  const R = 6371000; // Earth's radius in meters
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c; // Distance in meters
+}
+
+// Utility to get current IST date (YYYY-MM-DD) and check time deadlines in Asia/Kolkata
 export function getISTDateInfo(date = new Date()) {
   const istOffset = 5.5 * 60 * 60 * 1000;
   const istDate = new Date(date.getTime() + date.getTimezoneOffset() * 60000 + istOffset);
@@ -14,10 +37,11 @@ export function getISTDateInfo(date = new Date()) {
   const hours = istDate.getHours();
   const minutes = istDate.getMinutes();
   const dayOfWeek = istDate.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
+  const isAfter10AM = hours >= 10;
   const isAfter12PM = hours >= 12;
   const isAfter3PM = hours >= 15;
   const isAfter7PM = hours >= 19;
-  return { dateStr, hours, minutes, dayOfWeek, isAfter12PM, isAfter3PM, isAfter7PM, istDate };
+  return { dateStr, hours, minutes, dayOfWeek, isAfter10AM, isAfter12PM, isAfter3PM, isAfter7PM, istDate };
 }
 
 export function mapWorkdayFromDb(dbItem: any): Workday {
@@ -31,6 +55,12 @@ export function mapWorkdayFromDb(dbItem: any): Workday {
     progressNotes: dbItem.progress_notes,
     blockerNotes: dbItem.blocker_notes,
     tomorrowNotes: dbItem.tomorrow_notes,
+    checkInLatitude: dbItem.check_in_latitude,
+    checkInLongitude: dbItem.check_in_longitude,
+    checkInAccuracy: dbItem.check_in_accuracy,
+    checkInLocationTimestamp: dbItem.check_in_location_timestamp,
+    checkInMethod: dbItem.check_in_method,
+    checkOutSource: dbItem.check_out_source,
     createdAt: dbItem.created_at,
     updatedAt: dbItem.updated_at,
   };
@@ -104,11 +134,71 @@ export async function getAllWorkdays(limit = 100): Promise<Workday[]> {
   return (data || []).map(mapWorkdayFromDb);
 }
 
-export async function checkInOffice(founderName: FounderName): Promise<Workday> {
+export interface LocationCheckInParams {
+  founderName: FounderName;
+  latitude: number;
+  longitude: number;
+  accuracy: number;
+  timestamp?: number | string;
+}
+
+// Location-based check-in with independent server-side validation
+export async function checkInOfficeWithLocation(params: LocationCheckInParams): Promise<Workday> {
+  const { founderName, latitude, longitude, accuracy, timestamp } = params;
+
+  // 1. Client-side sanity checks
+  const { isAfter3PM } = getISTDateInfo();
+  if (isAfter3PM) {
+    throw new Error("Check-in is closed for today.");
+  }
+
+  const distance = calculateHaversineDistance(latitude, longitude);
+  if (distance > AUTOBEE_OFFICE_RADIUS_METERS) {
+    throw new Error(`You're outside the office. Move closer to the office to check in. (You're approximately ${Math.round(distance)}m away)`);
+  }
+
+  // 2. Dispatch to server API route for independent validation & record insertion
+  const res = await fetch("/api/attendance/check-in", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      founderName,
+      latitude,
+      longitude,
+      accuracy,
+      timestamp: timestamp || Date.now(),
+    }),
+  });
+
+  const result = await res.json().catch(() => ({}));
+
+  if (!res.ok || !result.success) {
+    throw new Error(result.error || "Check-in failed. Please try again.");
+  }
+
+  return mapWorkdayFromDb(result.workday);
+}
+
+export async function checkInOffice(
+  founderName: FounderName,
+  coords?: { latitude: number; longitude: number; accuracy: number; timestamp?: number | string }
+): Promise<Workday> {
+  if (coords) {
+    return checkInOfficeWithLocation({
+      founderName,
+      latitude: coords.latitude,
+      longitude: coords.longitude,
+      accuracy: coords.accuracy,
+      timestamp: coords.timestamp,
+    });
+  }
+
   const { dateStr, isAfter3PM } = getISTDateInfo();
 
   if (isAfter3PM) {
-    throw new Error("Check-in is closed for today. It is past 3:00 PM IST.");
+    throw new Error("Check-in is closed for today.");
   }
 
   // Check if existing workday exists for today
@@ -140,7 +230,6 @@ export async function checkInOffice(founderName: FounderName): Promise<Workday> 
     .single();
 
   if (error) {
-    // Double check if constraint caught duplicate check-in
     if (error.code === "23505") {
       const retry = await supabase
         .from("workdays")
@@ -161,7 +250,7 @@ export async function checkInOffice(founderName: FounderName): Promise<Workday> 
     founder_name: founderName,
     event_type: "check_in",
     timestamp: nowIso,
-    metadata: { source: "manual" },
+    metadata: { source: "location" },
   });
 
   // Log company activity
@@ -172,7 +261,7 @@ export async function checkInOffice(founderName: FounderName): Promise<Workday> 
     description: `${founderName} checked in at the office.`,
   });
 
-  // 1. Create in-app notification
+  // In-app notification
   await createNotification({
     eventId: `workday_checkin_${workday.id}`,
     title: "Office Check-in",
@@ -182,7 +271,7 @@ export async function checkInOffice(founderName: FounderName): Promise<Workday> 
     type: "check_in",
   });
 
-  // 2. Trigger native push notification
+  // Native push notification
   await notifyAttendanceChange("check_in", founderName, workday);
 
   return workday;
@@ -219,6 +308,7 @@ export async function checkOutOffice(
     .update({
       check_out_at: nowIso,
       status: "completed",
+      check_out_source: "manual",
       progress_notes: notes?.progress || null,
       blocker_notes: notes?.blocker || null,
       tomorrow_notes: notes?.tomorrow || null,
@@ -249,7 +339,7 @@ export async function checkOutOffice(
     description: `${founderName} ended their workday.`,
   });
 
-  // 1. Create in-app notification
+  // In-app notification
   await createNotification({
     eventId: `workday_checkout_${workday.id}`,
     title: "Office Check-out",
@@ -259,13 +349,15 @@ export async function checkOutOffice(
     type: "check_out",
   });
 
-  // 2. Trigger native push notification
+  // Native push notification
   await notifyAttendanceChange("check_out", founderName, workday);
 
   return workday;
 }
 
 // 7:00 PM IST Daily Automatic Checkout
+// Only for people who checked in today and haven't checked out.
+// Users who never checked in remain untouched ("Not checked in").
 export async function processAutoCheckoutServer(overrideDateStr?: string, force = false) {
   const { dateStr, isAfter7PM } = getISTDateInfo();
   const targetDate = overrideDateStr || dateStr;
@@ -274,7 +366,7 @@ export async function processAutoCheckoutServer(overrideDateStr?: string, force 
     return { processed: 0, message: "Before 7:00 PM IST — auto-checkout skipped." };
   }
 
-  // Find all workdays for today that are still working
+  // Find all workdays for today that are still in 'working' status and not checked out
   const { data: activeWorkdays, error: fetchErr } = await supabase
     .from("workdays")
     .select("*")
@@ -294,6 +386,7 @@ export async function processAutoCheckoutServer(overrideDateStr?: string, force 
       .update({
         check_out_at: nowIso,
         status: "completed",
+        check_out_source: "automatic",
         updated_at: nowIso,
       })
       .eq("id", workday.id)
@@ -320,7 +413,7 @@ export async function processAutoCheckoutServer(overrideDateStr?: string, force 
         description: `${workday.founder_name} was automatically checked out at 7:00 PM.`,
       });
 
-      // Send in-app notification (idempotent)
+      // Send in-app notification (idempotent via eventId)
       await createNotification({
         eventId: `workday_autocheckout_${workday.id}`,
         title: "Automatic Check-out",
@@ -342,23 +435,45 @@ export async function processAutoCheckoutServer(overrideDateStr?: string, force 
   return { processed: count, message: `Auto-checkout completed for ${count} founders.` };
 }
 
-// 12:00 PM IST Monday-Friday Attendance Reminder
-export async function processAttendanceReminderServer(overrideDateStr?: string, force = false) {
-  const { dateStr, dayOfWeek, isAfter12PM } = getISTDateInfo();
+// 10:00 AM & 12:00 PM IST Monday-Friday Attendance Reminders
+export async function processAttendanceReminderServer(
+  overrideDateStr?: string,
+  force = false,
+  reminderType: '10am' | '12pm' | 'auto' = 'auto'
+) {
+  const { dateStr, dayOfWeek, hours, isAfter10AM, isAfter12PM } = getISTDateInfo();
   const targetDate = overrideDateStr || dateStr;
 
-  // Monday to Friday check (1 = Mon, 5 = Fri)
+  // Monday to Friday check (1 = Mon, 5 = Fri, 0 = Sun, 6 = Sat)
   if (!force && (dayOfWeek === 0 || dayOfWeek === 6)) {
-    return { processed: 0, message: "Weekend in IST — skipping 12 PM reminder." };
+    return { processed: 0, message: "Weekend in IST — skipping attendance reminder." };
   }
 
-  if (!overrideDateStr && !isAfter12PM && !force) {
-    return { processed: 0, message: "Before 12:00 PM IST — reminder skipped." };
+  // Determine effective reminder type: 10am vs 12pm
+  let effectiveType: '10am' | '12pm' = '10am';
+  if (reminderType === 'auto') {
+    if (hours >= 12) {
+      effectiveType = '12pm';
+    } else {
+      effectiveType = '10am';
+    }
+  } else {
+    effectiveType = reminderType;
+  }
+
+  // Verify time boundaries unless forced or overridden
+  if (!overrideDateStr && !force) {
+    if (effectiveType === '10am' && !isAfter10AM) {
+      return { processed: 0, message: "Before 10:00 AM IST — reminder skipped." };
+    }
+    if (effectiveType === '12pm' && !isAfter12PM) {
+      return { processed: 0, message: "Before 12:00 PM IST — reminder skipped." };
+    }
   }
 
   const ALL_FOUNDERS: FounderName[] = ["Sourabh", "Asher", "Subin"];
 
-  // Query existing check-ins
+  // Query existing check-ins for targetDate
   const { data: existingWorkdays } = await supabase
     .from("workdays")
     .select("*")
@@ -373,14 +488,21 @@ export async function processAttendanceReminderServer(overrideDateStr?: string, 
   const missingFounders = ALL_FOUNDERS.filter((f) => !checkedInMap.has(f));
   let count = 0;
 
-  for (const founder of missingFounders) {
-    const eventId = `attendance-reminder-${founder}-${targetDate}`;
+  // Exact titles and bodies per specification
+  const title = effectiveType === '10am' ? "Office Check-in" : "Final Office Check-in Reminder";
+  const body =
+    effectiveType === '10am'
+      ? "You haven't checked in today."
+      : "You haven't checked in today. This is your final reminder.";
 
-    // Check if notification already exists for today
+  for (const founder of missingFounders) {
+    const eventId = `attendance-reminder-${effectiveType}-${founder}-${targetDate}`;
+
+    // Check if notification already exists for today (idempotency)
     const notif = await createNotification({
       eventId,
-      title: "Office Check-in Reminder",
-      body: "You haven't checked in today.",
+      title,
+      body,
       recipient: founder,
       actor: "System",
       type: "check_in_reminder",
@@ -390,8 +512,8 @@ export async function processAttendanceReminderServer(overrideDateStr?: string, 
       count++;
       // Trigger native push notification
       await notifyAttendanceChange("check_in_reminder", founder, undefined, {
-        title: "Office Check-in Reminder",
-        body: "You haven't checked in today.",
+        title,
+        body,
         toUsers: [founder],
       });
     }
@@ -399,12 +521,13 @@ export async function processAttendanceReminderServer(overrideDateStr?: string, 
 
   return {
     processed: count,
+    type: effectiveType,
     missingFounders,
-    message: `Attendance reminders sent to ${count} founder(s).`,
+    message: `${title} sent to ${count} founder(s).`,
   };
 }
 
-// 3:00 PM IST Auto-Leave Process
+// 3:00 PM IST Auto-Leave Process (Preserved for legacy cron routes)
 export async function processAutoLeaveServer(overrideDateStr?: string) {
   const { dateStr, isAfter3PM } = getISTDateInfo();
   const targetDate = overrideDateStr || dateStr;
@@ -452,7 +575,7 @@ export async function processAutoLeaveServer(overrideDateStr?: string) {
           type: "created",
           entityId: data.id,
           entityType: "task",
-          description: `${founder} was automatically marked Leave today (no office check-in before 3:00 PM).`,
+          description: `${founder} was marked Leave (no check-in by 3:00 PM).`,
         });
 
         // Send in-app notification
@@ -485,3 +608,5 @@ export function subscribeWorkdays(callback: () => void) {
 
   return () => supabase.removeChannel(channel);
 }
+
+

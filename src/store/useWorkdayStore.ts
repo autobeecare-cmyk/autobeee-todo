@@ -18,7 +18,7 @@ interface WorkdayStore {
   subscribed: boolean;
 
   fetchWorkdays: () => Promise<void>;
-  checkIn: () => Promise<void>;
+  checkIn: (coords?: { latitude: number; longitude: number; accuracy: number; timestamp?: number | string }) => Promise<void>;
   checkOut: (notes?: { progress?: string; blocker?: string; tomorrow?: string }) => Promise<void>;
   initRealtime: () => () => void;
 }
@@ -44,11 +44,11 @@ export const useWorkdayStore = create<WorkdayStore>((set, get) => ({
     }
   },
 
-  checkIn: async () => {
+  checkIn: async (coords) => {
     const currentUser = useUIStore.getState().currentUser as FounderName;
     set({ loading: true, error: null });
     try {
-      await checkInOffice(currentUser);
+      await checkInOffice(currentUser, coords);
       await get().fetchWorkdays();
     } catch (err: any) {
       set({ error: err.message || "Check-in failed", loading: false });

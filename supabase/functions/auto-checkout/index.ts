@@ -15,7 +15,19 @@ serve(async (_req) => {
   const year = istDate.getFullYear()
   const month = String(istDate.getMonth() + 1).padStart(2, '0')
   const day = String(istDate.getDate()).padStart(2, '0')
-  const dateStr = `${year}-${month}-${day}`
+  // Parse optional URL parameters
+  const url = new URL(_req.url)
+  const force = url.searchParams.get('force') === 'true'
+  const overrideDate = url.searchParams.get('date')
+  const dateStr = overrideDate || `${year}-${month}-${day}`
+  const hours = istDate.getHours()
+
+  if (!overrideDate && !force && hours < 19) {
+    return new Response(
+      JSON.stringify({ message: 'Before 7:00 PM IST — auto-checkout skipped.', dateStr, processed: 0 }),
+      { headers: { 'Content-Type': 'application/json' } }
+    )
+  }
 
   // 1. Fetch active workdays for today where status is 'working' and checkout is not yet done
   const workdaysRes = await fetch(
@@ -43,7 +55,7 @@ serve(async (_req) => {
   for (const workday of activeWorkdays) {
     const eventId = `workday_autocheckout_${workday.id}`
 
-    // 2. Update workday record to completed
+    // 2. Update workday record to completed with check_out_source: 'automatic'
     const updateRes = await fetch(`${supabaseUrl}/rest/v1/workdays?id=eq.${workday.id}`, {
       method: 'PATCH',
       headers: {
@@ -54,6 +66,7 @@ serve(async (_req) => {
       body: JSON.stringify({
         check_out_at: nowIso,
         status: 'completed',
+        check_out_source: 'automatic',
         updated_at: nowIso,
       }),
     })
