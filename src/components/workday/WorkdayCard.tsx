@@ -171,7 +171,8 @@ export function WorkdayCard({ onOpenHistory }: { onOpenHistory?: () => void }) {
       setBlockerNotes("");
       setTomorrowNotes("");
     } catch (err: any) {
-      setActionError(err.message || "Checkout failed. Please try again.");
+      console.error("Checkout failed:", err);
+      setActionError("Couldn't end your workday. Please try again.");
     } finally {
       setSubmitting(false);
     }

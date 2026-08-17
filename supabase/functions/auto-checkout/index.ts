@@ -31,7 +31,7 @@ serve(async (_req) => {
 
   // 1. Fetch active workdays for today where status is 'working' and checkout is not yet done
   const workdaysRes = await fetch(
-    `${supabaseUrl}/rest/v1/workdays?work_date=eq.${dateStr}&status=eq.working&select=*`,
+    `${supabaseUrl}/rest/v1/workdays?work_date=eq.${dateStr}&status=eq.working&check_out_at=is.null&select=*`,
     {
       headers: {
         apikey: supabaseKey,
@@ -55,7 +55,7 @@ serve(async (_req) => {
   for (const workday of activeWorkdays) {
     const eventId = `workday_autocheckout_${workday.id}`
 
-    // 2. Update workday record to completed with check_out_source: 'automatic'
+    // 2. Update workday record to completed
     const updateRes = await fetch(`${supabaseUrl}/rest/v1/workdays?id=eq.${workday.id}`, {
       method: 'PATCH',
       headers: {
@@ -66,7 +66,6 @@ serve(async (_req) => {
       body: JSON.stringify({
         check_out_at: nowIso,
         status: 'completed',
-        check_out_source: 'automatic',
         updated_at: nowIso,
       }),
     })

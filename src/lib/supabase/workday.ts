@@ -308,7 +308,6 @@ export async function checkOutOffice(
     .update({
       check_out_at: nowIso,
       status: "completed",
-      check_out_source: "manual",
       progress_notes: notes?.progress || null,
       blocker_notes: notes?.blocker || null,
       tomorrow_notes: notes?.tomorrow || null,
@@ -371,7 +370,8 @@ export async function processAutoCheckoutServer(overrideDateStr?: string, force 
     .from("workdays")
     .select("*")
     .eq("work_date", targetDate)
-    .eq("status", "working");
+    .eq("status", "working")
+    .is("check_out_at", null);
 
   if (fetchErr || !activeWorkdays || activeWorkdays.length === 0) {
     return { processed: 0, message: `No active check-ins found for ${targetDate}.` };
@@ -386,7 +386,6 @@ export async function processAutoCheckoutServer(overrideDateStr?: string, force 
       .update({
         check_out_at: nowIso,
         status: "completed",
-        check_out_source: "automatic",
         updated_at: nowIso,
       })
       .eq("id", workday.id)

@@ -63,7 +63,8 @@ export const useWorkdayStore = create<WorkdayStore>((set, get) => ({
       await checkOutOffice(currentUser, notes);
       await get().fetchWorkdays();
     } catch (err: any) {
-      set({ error: err.message || "Checkout failed", loading: false });
+      console.error("Attendance checkout error:", err);
+      set({ error: "Couldn't end your workday. Please try again.", loading: false });
       throw err;
     }
   },
