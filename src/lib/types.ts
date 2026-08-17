@@ -360,7 +360,7 @@ export interface RoadmapRisk {
 // ── Workday & Attendance Types ──
 export type FounderName = "Sourabh" | "Asher" | "Subin";
 export type WorkdayStatus = "working" | "completed" | "leave";
-export type WorkdayEventType = "check_in" | "check_out" | "auto_leave";
+export type WorkdayEventType = "check_in" | "check_out" | "auto_leave" | "auto_check_out" | "check_in_reminder";
 
 export interface Workday {
   id: string;
@@ -434,6 +434,21 @@ export interface PairwiseDebt {
 }
 
 // ── Notification Types ──
+export type NotificationType =
+  | "check_in"
+  | "check_out"
+  | "auto_leave"
+  | "auto_check_out"
+  | "check_in_reminder"
+  | "settlement"
+  | "expense"
+  | "task"
+  | "task_reminder"
+  | "meeting"
+  | "meeting_alert"
+  | "goal"
+  | "system";
+
 export interface AppNotification {
   id: string;
   eventId: string;
@@ -441,7 +456,7 @@ export interface AppNotification {
   body: string;
   recipient: FounderName | "All";
   actor: FounderName | "System";
-  type: "check_in" | "check_out" | "auto_leave" | "settlement" | "expense";
+  type: NotificationType;
   read: boolean;
   createdAt: string;
 }

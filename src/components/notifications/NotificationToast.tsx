@@ -2,7 +2,18 @@
 
 import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, X, MapPin, LogOut, AlertCircle, DollarSign } from "lucide-react";
+import {
+  Bell,
+  X,
+  MapPin,
+  LogOut,
+  Clock,
+  AlertCircle,
+  DollarSign,
+  Calendar,
+  CheckSquare,
+  Target,
+} from "lucide-react";
 import { useNotificationStore } from "@/store/useNotificationStore";
 
 export function NotificationToast() {
@@ -12,6 +23,34 @@ export function NotificationToast() {
     const unsub = initRealtime();
     return () => unsub();
   }, [initRealtime]);
+
+  const getIcon = (type: string) => {
+    switch (type) {
+      case "check_in":
+        return <MapPin className="w-4 h-4" />;
+      case "check_out":
+        return <LogOut className="w-4 h-4" />;
+      case "auto_check_out":
+        return <Clock className="w-4 h-4" />;
+      case "check_in_reminder":
+        return <AlertCircle className="w-4 h-4" />;
+      case "settlement":
+      case "expense":
+        return <DollarSign className="w-4 h-4" />;
+      case "meeting":
+      case "meeting_alert":
+      case "meeting_change":
+        return <Calendar className="w-4 h-4" />;
+      case "task":
+      case "task_reminder":
+        return <CheckSquare className="w-4 h-4" />;
+      case "goal":
+      case "goal_reminder":
+        return <Target className="w-4 h-4" />;
+      default:
+        return <Bell className="w-4 h-4" />;
+    }
+  };
 
   return (
     <div className="fixed bottom-5 right-5 z-[100] flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0">
@@ -26,15 +65,7 @@ export function NotificationToast() {
           >
             <div className="flex items-start gap-3">
               <div className="p-2 rounded-lg bg-[#FFC107]/10 text-[#FFC107] shrink-0 mt-0.5">
-                {toast.type === "check_in" ? (
-                  <MapPin className="w-4 h-4" />
-                ) : toast.type === "check_out" ? (
-                  <LogOut className="w-4 h-4" />
-                ) : toast.type === "settlement" ? (
-                  <DollarSign className="w-4 h-4" />
-                ) : (
-                  <Bell className="w-4 h-4" />
-                )}
+                {getIcon(toast.type)}
               </div>
               <div className="space-y-0.5">
                 <div className="text-xs font-semibold text-foreground">{toast.title}</div>
@@ -43,7 +74,7 @@ export function NotificationToast() {
             </div>
             <button
               onClick={() => dismissToast(toast.id)}
-              className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5"
+              className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>

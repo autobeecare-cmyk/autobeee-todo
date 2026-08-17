@@ -16,11 +16,7 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const fcmServerKey = Deno.env.get('FCM_SERVER_KEY')!
-
-    const sa = Deno.env.get('FIREBASE_SERVICE_ACCOUNT');
-    console.log('sa character codes:', sa ? Array.from(sa.slice(0, 20)).map(c => c.charCodeAt(0)) : 'none');
-    console.log('sa starts with:', sa ? sa.slice(0, 100) : 'none');
+    const fcmServerKey = Deno.env.get('FCM_SERVER_KEY') || ''
 
     const { type, meeting } = await req.json()
     // type: 'created' | 'updated' | 'cancelled' | 'reminder'
@@ -62,7 +58,7 @@ serve(async (req) => {
     }
 
     // Send to all attendees
-    const attendees = meeting.attendees?.length > 0 ? meeting.attendees : ['all']
+    const attendees = meeting.attendees?.length > 0 ? meeting.attendees : ['All']
 
     const result = await sendPushNotification({
       toUsers: attendees,
@@ -71,6 +67,7 @@ serve(async (req) => {
       type: type === 'reminder' ? 'meeting_alert' : 'meeting_change',
       entityId: meeting.id,
       entityType: 'meeting',
+      priority: type === 'reminder' ? 'high' : 'normal',
       supabaseUrl,
       supabaseKey,
       fcmServerKey,

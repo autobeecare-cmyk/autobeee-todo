@@ -16,43 +16,72 @@ const messaging = firebase.messaging()
 
 // Handle background messages
 messaging.onBackgroundMessage((payload) => {
-  console.log('Background message received:', payload)
+  console.log('[SW] Background message received:', payload)
 
-  const { title, body } = payload.notification ?? {}
-  const data = payload.data ?? {}
+  const data = payload.data || {}
+  const title = payload.notification?.title || data.title || 'Autobee OS'
+  const body = payload.notification?.body || data.body || ''
 
-  self.registration.showNotification(title ?? 'Autobee OS', {
-    body: body ?? '',
+  const isHighPriority =
+    data.priority === 'high' ||
+    data.type === 'meeting_alert' ||
+    data.type === 'auto_check_out' ||
+    data.type === 'check_in_reminder' ||
+    data.type === 'task_reminder'
+
+  const notificationOptions = {
+    body: body,
     icon: '/icon-192.png',
     badge: '/icon-192.png',
-    tag: data.entity_id ?? 'autobee-notification',
+    tag: data.entity_id ? `autobee-${data.entity_id}` : `autobee-${data.type || 'msg'}-${Date.now()}`,
     data: data,
     actions: getActions(data.type),
-    requireInteraction: data.type === 'meeting_alert', // meetings stay until dismissed
-  })
+    requireInteraction: isHighPriority,
+  }
+
+  return self.registration.showNotification(title, notificationOptions)
 })
 
 // Notification click handler
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
 
-  const data = event.notification.data ?? {}
-  let url = '/'
+  const data = event.notification.data || {}
+  let url = data.url || '/'
 
-  // Navigate to relevant page when notification is clicked
-  switch (data.type) {
-    case 'task_reminder':
-      url = '/tasks'
-      break
-    case 'meeting_alert':
-    case 'meeting_change':
-      url = '/meetings'
-      break
-    case 'partner_update':
-      url = '/partners'
-      break
-    default:
-      url = '/'
+  if (!data.url) {
+    switch (data.type) {
+      case 'check_in':
+      case 'check_out':
+      case 'auto_leave':
+      case 'auto_check_out':
+      case 'check_in_reminder':
+      case 'attendance':
+        url = '/'
+        break
+      case 'task':
+      case 'task_reminder':
+        url = '/tasks'
+        break
+      case 'meeting':
+      case 'meeting_alert':
+      case 'meeting_change':
+        url = '/meetings'
+        break
+      case 'goal':
+      case 'goal_reminder':
+        url = '/goals'
+        break
+      case 'settlement':
+      case 'expense':
+        url = '/money'
+        break
+      case 'partner_update':
+        url = '/partners'
+        break
+      default:
+        url = '/'
+    }
   }
 
   event.waitUntil(
@@ -61,7 +90,9 @@ self.addEventListener('notificationclick', (event) => {
       for (const client of clientList) {
         if ('focus' in client) {
           client.focus()
-          client.navigate(url)
+          if ('navigate' in client && url) {
+            client.navigate(url)
+          }
           return
         }
       }
@@ -74,16 +105,36 @@ self.addEventListener('notificationclick', (event) => {
 })
 
 function getActions(type) {
-  if (type === 'meeting_alert') {
-    return [
-      { action: 'view', title: '📅 View Meeting' },
-      { action: 'dismiss', title: 'Dismiss' },
-    ]
+  switch (type) {
+    case 'meeting_alert':
+      return [
+        { action: 'view', title: '📅 View Meeting' },
+        { action: 'dismiss', title: 'Dismiss' },
+      ]
+    case 'task':
+    case 'task_reminder':
+      return [
+        { action: 'view', title: '✅ View Tasks' },
+      ]
+    case 'check_in':
+    case 'check_out':
+    case 'auto_check_out':
+    case 'check_in_reminder':
+    case 'auto_leave':
+      return [
+        { action: 'view', title: '🐝 View Attendance' },
+      ]
+    case 'goal':
+    case 'goal_reminder':
+      return [
+        { action: 'view', title: '🎯 View Goals' },
+      ]
+    case 'settlement':
+    case 'expense':
+      return [
+        { action: 'view', title: '💰 View Money' },
+      ]
+    default:
+      return []
   }
-  if (type === 'task_reminder') {
-    return [
-      { action: 'view', title: '✅ View Tasks' },
-    ]
-  }
-  return []
 }

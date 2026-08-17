@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useUIStore } from "@/store/useUIStore";
 import { NotificationToggle } from "@/components/NotificationToggle";
+import { PushDiagnostics } from "@/components/notifications/PushDiagnostics";
 import { useTaskStore } from "@/store/useTaskStore";
 import { useGoalStore } from "@/store/useGoalStore";
 import { useExpenseStore } from "@/store/useExpenseStore";
@@ -159,6 +160,7 @@ export default function SettingsPage() {
           desc="Task reminders & meeting alerts"
           right={<NotificationToggle />}
         />
+        <PushDiagnostics />
         <div className="px-5 py-3.5 bg-white/[0.01] text-[11px] text-muted-foreground border-t border-white/05 flex flex-col gap-1">
           <p>⚠️ iOS: To receive notifications, you must first add this app to your Home Screen.</p>
           <p>🔒 Testing: Notifications require a secure (HTTPS) context.</p>

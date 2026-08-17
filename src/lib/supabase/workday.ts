@@ -3,17 +3,21 @@ import type { Workday, WorkdayEvent, FounderName, WorkdayStatus } from "../types
 import { logActivity } from "./activity";
 import { createNotification } from "./notifications";
 
-// Utility to get current IST date (YYYY-MM-DD) and check 3 PM deadline
+// Utility to get current IST date (YYYY-MM-DD) and check time deadlines
 export function getISTDateInfo(date = new Date()) {
   const istOffset = 5.5 * 60 * 60 * 1000;
-  const istDate = new Date(date.getTime() + (date.getTimezoneOffset() * 60000) + istOffset);
+  const istDate = new Date(date.getTime() + date.getTimezoneOffset() * 60000 + istOffset);
   const year = istDate.getFullYear();
   const month = String(istDate.getMonth() + 1).padStart(2, "0");
   const day = String(istDate.getDate()).padStart(2, "0");
   const dateStr = `${year}-${month}-${day}`;
   const hours = istDate.getHours();
+  const minutes = istDate.getMinutes();
+  const dayOfWeek = istDate.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
+  const isAfter12PM = hours >= 12;
   const isAfter3PM = hours >= 15;
-  return { dateStr, hours, isAfter3PM, istDate };
+  const isAfter7PM = hours >= 19;
+  return { dateStr, hours, minutes, dayOfWeek, isAfter12PM, isAfter3PM, isAfter7PM, istDate };
 }
 
 export function mapWorkdayFromDb(dbItem: any): Workday {
@@ -31,6 +35,46 @@ export function mapWorkdayFromDb(dbItem: any): Workday {
     updatedAt: dbItem.updated_at,
   };
 }
+
+// Trigger native push notification via Supabase Edge Function
+export const notifyAttendanceChange = async (
+  type: 'check_in' | 'check_out' | 'auto_check_out' | 'check_in_reminder' | 'auto_leave' | 'test',
+  founderName: string,
+  workday?: any,
+  options?: { title?: string; body?: string; toUsers?: string[] }
+) => {
+  try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!supabaseUrl) return;
+
+    const res = await fetch(`${supabaseUrl}/functions/v1/notify-attendance`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${anonKey}`,
+      },
+      body: JSON.stringify({
+        type,
+        founderName,
+        workday,
+        title: options?.title,
+        body: options?.body,
+        toUsers: options?.toUsers,
+      }),
+    });
+
+    if (!res.ok) {
+      console.warn('Notify attendance returned status:', res.status, await res.text());
+    } else {
+      const data = await res.json().catch(() => ({}));
+      console.log('Notify attendance succeeded:', data);
+    }
+  } catch (error) {
+    console.error('Failed to send attendance push notification:', error);
+    // Non-blocking
+  }
+};
 
 export async function getTodayWorkdays(dateStr?: string): Promise<Workday[]> {
   const targetDate = dateStr || getISTDateInfo().dateStr;
@@ -117,26 +161,29 @@ export async function checkInOffice(founderName: FounderName): Promise<Workday> 
     founder_name: founderName,
     event_type: "check_in",
     timestamp: nowIso,
+    metadata: { source: "manual" },
   });
 
   // Log company activity
   await logActivity({
     type: "created",
     entityId: workday.id,
-    entityType: "task", // map to generic entity type
+    entityType: "task",
     description: `${founderName} checked in at the office.`,
   });
 
-  // Notify other founders
-  const timeFormatted = new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  // 1. Create in-app notification
   await createNotification({
     eventId: `workday_checkin_${workday.id}`,
-    title: "🐝 Office Arrival",
-    body: `${founderName} arrived at the office (${timeFormatted})`,
+    title: "Office Check-in",
+    body: `${founderName} arrived at the office.`,
     recipient: "All",
     actor: founderName,
     type: "check_in",
   });
+
+  // 2. Trigger native push notification
+  await notifyAttendanceChange("check_in", founderName, workday);
 
   return workday;
 }
@@ -191,6 +238,7 @@ export async function checkOutOffice(
     founder_name: founderName,
     event_type: "check_out",
     timestamp: nowIso,
+    metadata: { source: "manual" },
   });
 
   // Log company activity
@@ -201,32 +249,172 @@ export async function checkOutOffice(
     description: `${founderName} ended their workday.`,
   });
 
-  // Notify other founders
-  const timeFormatted = new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  // 1. Create in-app notification
   await createNotification({
     eventId: `workday_checkout_${workday.id}`,
-    title: "🐝 Workday Ended",
-    body: `${founderName} ended their workday (${timeFormatted})`,
+    title: "Office Check-out",
+    body: `${founderName} left the office.`,
     recipient: "All",
     actor: founderName,
     type: "check_out",
   });
 
+  // 2. Trigger native push notification
+  await notifyAttendanceChange("check_out", founderName, workday);
+
   return workday;
 }
 
+// 7:00 PM IST Daily Automatic Checkout
+export async function processAutoCheckoutServer(overrideDateStr?: string, force = false) {
+  const { dateStr, isAfter7PM } = getISTDateInfo();
+  const targetDate = overrideDateStr || dateStr;
+
+  if (!overrideDateStr && !isAfter7PM && !force) {
+    return { processed: 0, message: "Before 7:00 PM IST — auto-checkout skipped." };
+  }
+
+  // Find all workdays for today that are still working
+  const { data: activeWorkdays, error: fetchErr } = await supabase
+    .from("workdays")
+    .select("*")
+    .eq("work_date", targetDate)
+    .eq("status", "working");
+
+  if (fetchErr || !activeWorkdays || activeWorkdays.length === 0) {
+    return { processed: 0, message: `No active check-ins found for ${targetDate}.` };
+  }
+
+  let count = 0;
+  const nowIso = new Date().toISOString();
+
+  for (const workday of activeWorkdays) {
+    const { data: updated, error: updateErr } = await supabase
+      .from("workdays")
+      .update({
+        check_out_at: nowIso,
+        status: "completed",
+        updated_at: nowIso,
+      })
+      .eq("id", workday.id)
+      .select()
+      .single();
+
+    if (!updateErr && updated) {
+      count++;
+
+      // Log event
+      await supabase.from("workday_events").insert({
+        workday_id: workday.id,
+        founder_name: workday.founder_name,
+        event_type: "auto_check_out",
+        timestamp: nowIso,
+        metadata: { source: "automatic", reason: "7_pm_deadline" },
+      });
+
+      // Log activity
+      await logActivity({
+        type: "updated",
+        entityId: workday.id,
+        entityType: "task",
+        description: `${workday.founder_name} was automatically checked out at 7:00 PM.`,
+      });
+
+      // Send in-app notification (idempotent)
+      await createNotification({
+        eventId: `workday_autocheckout_${workday.id}`,
+        title: "Automatic Check-out",
+        body: "You were automatically checked out at 7:00 PM.",
+        recipient: workday.founder_name,
+        actor: "System",
+        type: "auto_check_out",
+      });
+
+      // Trigger native push notification
+      await notifyAttendanceChange("auto_check_out", workday.founder_name, workday, {
+        title: "Automatic Check-out",
+        body: "You were automatically checked out at 7:00 PM.",
+        toUsers: [workday.founder_name],
+      });
+    }
+  }
+
+  return { processed: count, message: `Auto-checkout completed for ${count} founders.` };
+}
+
+// 12:00 PM IST Monday-Friday Attendance Reminder
+export async function processAttendanceReminderServer(overrideDateStr?: string, force = false) {
+  const { dateStr, dayOfWeek, isAfter12PM } = getISTDateInfo();
+  const targetDate = overrideDateStr || dateStr;
+
+  // Monday to Friday check (1 = Mon, 5 = Fri)
+  if (!force && (dayOfWeek === 0 || dayOfWeek === 6)) {
+    return { processed: 0, message: "Weekend in IST — skipping 12 PM reminder." };
+  }
+
+  if (!overrideDateStr && !isAfter12PM && !force) {
+    return { processed: 0, message: "Before 12:00 PM IST — reminder skipped." };
+  }
+
+  const ALL_FOUNDERS: FounderName[] = ["Sourabh", "Asher", "Subin"];
+
+  // Query existing check-ins
+  const { data: existingWorkdays } = await supabase
+    .from("workdays")
+    .select("*")
+    .eq("work_date", targetDate);
+
+  const checkedInMap = new Set(
+    (existingWorkdays || [])
+      .filter((w: any) => w.status === "working" || w.status === "completed")
+      .map((w: any) => w.founder_name)
+  );
+
+  const missingFounders = ALL_FOUNDERS.filter((f) => !checkedInMap.has(f));
+  let count = 0;
+
+  for (const founder of missingFounders) {
+    const eventId = `attendance-reminder-${founder}-${targetDate}`;
+
+    // Check if notification already exists for today
+    const notif = await createNotification({
+      eventId,
+      title: "Office Check-in Reminder",
+      body: "You haven't checked in today.",
+      recipient: founder,
+      actor: "System",
+      type: "check_in_reminder",
+    });
+
+    if (notif) {
+      count++;
+      // Trigger native push notification
+      await notifyAttendanceChange("check_in_reminder", founder, undefined, {
+        title: "Office Check-in Reminder",
+        body: "You haven't checked in today.",
+        toUsers: [founder],
+      });
+    }
+  }
+
+  return {
+    processed: count,
+    missingFounders,
+    message: `Attendance reminders sent to ${count} founder(s).`,
+  };
+}
+
+// 3:00 PM IST Auto-Leave Process
 export async function processAutoLeaveServer(overrideDateStr?: string) {
   const { dateStr, isAfter3PM } = getISTDateInfo();
   const targetDate = overrideDateStr || dateStr;
 
-  // Only auto-leave if deadline reached or explicit override date provided
   if (!overrideDateStr && !isAfter3PM) {
     return { processed: 0, message: "Before 3:00 PM IST — auto-leave skipped." };
   }
 
   const ALL_FOUNDERS: FounderName[] = ["Sourabh", "Asher", "Subin"];
 
-  // Get current workdays for target date
   const { data: existingWorkdays } = await supabase
     .from("workdays")
     .select("*")
@@ -267,7 +455,7 @@ export async function processAutoLeaveServer(overrideDateStr?: string) {
           description: `${founder} was automatically marked Leave today (no office check-in before 3:00 PM).`,
         });
 
-        // Send notification
+        // Send in-app notification
         await createNotification({
           eventId: `workday_autoleave_${targetDate}_${founder}`,
           title: "AutoBee OS Attendance",
@@ -276,6 +464,9 @@ export async function processAutoLeaveServer(overrideDateStr?: string) {
           actor: "System",
           type: "auto_leave",
         });
+
+        // Trigger native push notification
+        await notifyAttendanceChange("auto_leave", founder, data);
       }
     }
   }

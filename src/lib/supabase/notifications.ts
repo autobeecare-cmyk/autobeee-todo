@@ -69,6 +69,8 @@ export async function createNotification(n: Omit<AppNotification, "id" | "read" 
         body: n.body,
         recipient: n.recipient,
         actor: n.actor,
+        type: n.type,
+        entityId: n.eventId,
       }),
     }).catch((err) => console.error("Push notify error:", err));
   } catch (e) {

@@ -12,109 +12,194 @@ const firebaseConfig = {
 // Initialize Firebase app only once
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0]
 
-// Get FCM token for this device
+// Register Service Worker with error handling
+export const registerServiceWorker = async (): Promise<ServiceWorkerRegistration | null> => {
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
+    return null
+  }
+
+  try {
+    const swRegistration = await navigator.serviceWorker.register(
+      '/firebase-messaging-sw.js',
+      { scope: '/' }
+    )
+    await navigator.serviceWorker.ready
+    console.log('[FCM] Service worker registered successfully, scope:', swRegistration.scope)
+    return swRegistration
+  } catch (err) {
+    console.error('[FCM] Service worker registration failed:', err)
+    return null
+  }
+}
+
+// Get FCM token for this device & register to Supabase
 export const requestNotificationPermission = async (userName: string): Promise<string | null> => {
   try {
     const supported = await isSupported()
     if (!supported) {
-      console.warn('Push notifications not supported in this browser')
+      console.warn('[FCM] Push notifications not supported in this browser environment')
       return null
     }
 
     const permission = await Notification.requestPermission()
     if (permission !== 'granted') {
-      console.warn('Notification permission denied')
+      console.warn('[FCM] Notification permission was denied or dismissed:', permission)
       return null
     }
 
-    // Explicitly register our service worker so Firebase uses it
-    let swRegistration: ServiceWorkerRegistration | undefined
-    if ('serviceWorker' in navigator) {
-      try {
-        swRegistration = await navigator.serviceWorker.register(
-          '/firebase-messaging-sw.js',
-          { scope: '/' }
-        )
-        // Wait for the SW to be ready
-        await navigator.serviceWorker.ready
-        console.log('Service worker registered:', swRegistration.scope)
-      } catch (err) {
-        console.error('Service worker registration failed:', err)
-      }
+    const swRegistration = await registerServiceWorker()
+    if (!swRegistration) {
+      console.warn('[FCM] Could not register service worker')
     }
 
     const messaging = getMessaging(app)
     const token = await getToken(messaging, {
       vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
-      serviceWorkerRegistration: swRegistration,
+      serviceWorkerRegistration: swRegistration || undefined,
     })
 
     if (token) {
-      console.log('FCM token obtained:', token.slice(0, 20) + '...')
-      // Save token to Supabase
+      console.log('[FCM] FCM token obtained:', token.slice(0, 20) + '...')
+      // Save / update token in Supabase push_tokens table
       await saveTokenToSupabase(token, userName)
       return token
     }
 
-    console.warn('No FCM token returned')
+    console.warn('[FCM] No FCM token returned from getToken')
     return null
   } catch (error) {
-    console.error('Error getting notification permission:', error)
+    console.error('[FCM] Error getting notification permission or token:', error)
     return null
   }
 }
 
-// Save/update token in Supabase push_tokens table
-const saveTokenToSupabase = async (token: string, userName: string) => {
-  const { supabase } = await import('./supabase')
+// Save or update token in Supabase push_tokens table (Multi-device per user)
+export const saveTokenToSupabase = async (token: string, userName: string) => {
+  try {
+    const { supabase } = await import('./supabase')
 
-  // Upsert: if token exists update it, if not create it
-  const { error } = await supabase
-    .from('push_tokens')
-    .upsert(
-      {
-        user_name: userName,
-        fcm_token: token,
-        platform: detectPlatform(),
-        user_agent: navigator.userAgent,
-        is_active: true,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'fcm_token' }
-    )
+    const { error } = await supabase
+      .from('push_tokens')
+      .upsert(
+        {
+          user_name: userName,
+          fcm_token: token,
+          platform: detectPlatform(),
+          user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
+          is_active: true,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'fcm_token' }
+      )
 
-  if (error) console.error('Error saving push token:', error)
+    if (error) {
+      console.error('[FCM] Error saving push token to Supabase:', error)
+    } else {
+      console.log('[FCM] Push token saved for user:', userName)
+    }
+  } catch (err) {
+    console.error('[FCM] Exception saving push token:', err)
+  }
 }
 
-// Detect platform for analytics
-const detectPlatform = (): string => {
+// Detect client platform
+export const detectPlatform = (): string => {
+  if (typeof navigator === 'undefined') return 'web'
   const ua = navigator.userAgent
   if (/iPad|iPhone|iPod/.test(ua)) return 'ios'
   if (/Android/.test(ua)) return 'android'
+  if (/Macintosh/.test(ua)) return 'macos'
+  if (/Windows/.test(ua)) return 'windows'
+  if (/Linux/.test(ua)) return 'linux'
   return 'web'
 }
 
 // Listen for notifications while app is open (foreground)
 export const setupForegroundNotifications = async () => {
+  if (typeof window === 'undefined') return
   const supported = await isSupported()
   if (!supported) return
 
   const messaging = getMessaging(app)
 
   onMessage(messaging, (payload) => {
-    console.log('Foreground notification received:', payload)
+    console.log('[FCM] Foreground notification received:', payload)
 
-    // Show notification manually when app is open
-    // (browsers don't auto-show when app is in foreground)
-      if (payload.notification) {
-        const { title, body } = payload.notification
-        new Notification(title ?? 'Autobee', {
-          body: body ?? '',
+    const data = payload.data || {}
+    const title = payload.notification?.title || data.title || 'Autobee OS'
+    const body = payload.notification?.body || data.body || ''
+
+    if (Notification.permission === 'granted') {
+      try {
+        new Notification(title, {
+          body,
           icon: '/icon-192.png',
           badge: '/icon-192.png',
+          tag: data.entity_id ? `autobee-${data.entity_id}` : `autobee-${data.type || 'msg'}-${Date.now()}`,
+          data,
         })
+      } catch (err) {
+        console.error('[FCM] Error displaying native foreground notification:', err)
       }
+    }
   })
+}
+
+// Diagnostic helper
+export const getNotificationDiagnostics = async (userName: string) => {
+  const isClient = typeof window !== 'undefined'
+  const pushSupported = isClient ? ('Notification' in window && 'serviceWorker' in navigator) : false
+  const permission = isClient && 'Notification' in window ? Notification.permission : 'unsupported'
+
+  let swActive = false
+  if (isClient && 'serviceWorker' in navigator) {
+    const regs = await navigator.serviceWorker.getRegistrations().catch(() => [])
+    swActive = regs.some((r) => r.active && r.scope.includes('/'))
+  }
+
+  let activeTokensCount = 0
+  let userTokens: any[] = []
+
+  try {
+    const { supabase } = await import('./supabase')
+    const { data } = await supabase
+      .from('push_tokens')
+      .select('*')
+      .eq('user_name', userName)
+      .eq('is_active', true)
+
+    userTokens = data || []
+    activeTokensCount = userTokens.length
+  } catch (err) {
+    console.warn('[FCM] Could not fetch user tokens for diagnostics:', err)
+  }
+
+  return {
+    pushSupported,
+    permission,
+    serviceWorkerActive: swActive,
+    activeTokensCount,
+    userTokens,
+    platform: detectPlatform(),
+  }
+}
+
+// Send test push helper
+export const sendTestPushNotification = async (userName: string) => {
+  const res = await fetch('/api/notifications/send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      title: 'AutoBee Test Notification',
+      body: 'Native push notifications are working smoothly across your active devices!',
+      recipient: userName,
+      actor: 'System',
+      type: 'test',
+      priority: 'high',
+    }),
+  })
+
+  return res.json()
 }
 
 export { app }
