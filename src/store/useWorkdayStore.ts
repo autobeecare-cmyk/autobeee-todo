@@ -51,7 +51,8 @@ export const useWorkdayStore = create<WorkdayStore>((set, get) => ({
       await checkInOffice(currentUser, coords);
       await get().fetchWorkdays();
     } catch (err: any) {
-      set({ error: err.message || "Check-in failed", loading: false });
+      console.error("Attendance check-in error:", err);
+      set({ error: err.message || "Couldn't check you in. Please try again.", loading: false });
       throw err;
     }
   },

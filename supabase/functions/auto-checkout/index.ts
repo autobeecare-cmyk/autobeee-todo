@@ -86,7 +86,7 @@ serve(async (_req) => {
       body: JSON.stringify({
         workday_id: workday.id,
         founder_name: workday.founder_name,
-        event_type: 'auto_check_out',
+        event_type: 'check_out',
         timestamp: nowIso,
         metadata: { source: 'automatic', reason: '7_pm_deadline' },
       }),
@@ -106,7 +106,7 @@ serve(async (_req) => {
         body: 'You were automatically checked out at 7:00 PM.',
         recipient: workday.founder_name,
         actor: 'System',
-        type: 'auto_check_out',
+        type: 'check_out',
         read: false,
       }),
     })

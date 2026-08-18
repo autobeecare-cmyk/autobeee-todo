@@ -129,7 +129,8 @@ export function WorkdayCard({ onOpenHistory }: { onOpenHistory?: () => void }) {
             setStatusMessage(null);
           }, 1200);
         } catch (err: any) {
-          setActionError(err.message || "Check-in failed. Please try again.");
+          console.error("Check-in failed:", err);
+          setActionError(err.message || "Couldn't check you in. Please try again.");
           setCheckInStage("idle");
           setStatusMessage(null);
         } finally {

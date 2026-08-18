@@ -108,9 +108,8 @@ export async function POST(req: Request) {
       })
     }
 
-    // 7. Create attendance record in database with location metadata
+    // 7. Create attendance record in database using valid schema columns only
     const nowIso = new Date().toISOString()
-    const locTimestamp = timestamp ? new Date(timestamp).toISOString() : nowIso
 
     const { data: newWorkday, error: insertErr } = await supabase
       .from('workdays')
@@ -119,11 +118,6 @@ export async function POST(req: Request) {
         work_date: dateStr,
         check_in_at: nowIso,
         status: 'working',
-        check_in_latitude: latitude,
-        check_in_longitude: longitude,
-        check_in_accuracy: typeof accuracy === 'number' ? accuracy : null,
-        check_in_location_timestamp: locTimestamp,
-        check_in_method: 'location',
       })
       .select()
       .single()
@@ -141,9 +135,21 @@ export async function POST(req: Request) {
           return NextResponse.json({ success: true, workday: retry })
         }
       }
-      console.error('Error creating workday record:', insertErr)
+      console.error('Supabase check-in insert error:', {
+        code: insertErr.code,
+        message: insertErr.message,
+        details: insertErr.details,
+        hint: insertErr.hint,
+        table: 'workdays',
+        payload: {
+          founder_name: founderName,
+          work_date: dateStr,
+          check_in_at: nowIso,
+          status: 'working',
+        },
+      })
       return NextResponse.json(
-        { success: false, error: 'Database check-in insertion failed.' },
+        { success: false, error: "Couldn't check you in. Please try again." },
         { status: 500 }
       )
     }

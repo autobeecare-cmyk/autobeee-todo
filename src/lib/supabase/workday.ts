@@ -55,12 +55,6 @@ export function mapWorkdayFromDb(dbItem: any): Workday {
     progressNotes: dbItem.progress_notes,
     blockerNotes: dbItem.blocker_notes,
     tomorrowNotes: dbItem.tomorrow_notes,
-    checkInLatitude: dbItem.check_in_latitude,
-    checkInLongitude: dbItem.check_in_longitude,
-    checkInAccuracy: dbItem.check_in_accuracy,
-    checkInLocationTimestamp: dbItem.check_in_location_timestamp,
-    checkInMethod: dbItem.check_in_method,
-    checkOutSource: dbItem.check_out_source,
     createdAt: dbItem.created_at,
     updatedAt: dbItem.updated_at,
   };
@@ -175,7 +169,7 @@ export async function checkInOfficeWithLocation(params: LocationCheckInParams): 
   const result = await res.json().catch(() => ({}));
 
   if (!res.ok || !result.success) {
-    throw new Error(result.error || "Check-in failed. Please try again.");
+    throw new Error(result.error || "Couldn't check you in. Please try again.");
   }
 
   return mapWorkdayFromDb(result.workday);
@@ -399,7 +393,7 @@ export async function processAutoCheckoutServer(overrideDateStr?: string, force 
       await supabase.from("workday_events").insert({
         workday_id: workday.id,
         founder_name: workday.founder_name,
-        event_type: "auto_check_out",
+        event_type: "check_out",
         timestamp: nowIso,
         metadata: { source: "automatic", reason: "7_pm_deadline" },
       });
@@ -419,7 +413,7 @@ export async function processAutoCheckoutServer(overrideDateStr?: string, force 
         body: "You were automatically checked out at 7:00 PM.",
         recipient: workday.founder_name,
         actor: "System",
-        type: "auto_check_out",
+        type: "check_out",
       });
 
       // Trigger native push notification
@@ -504,7 +498,7 @@ export async function processAttendanceReminderServer(
       body,
       recipient: founder,
       actor: "System",
-      type: "check_in_reminder",
+      type: "check_in",
     });
 
     if (notif) {
