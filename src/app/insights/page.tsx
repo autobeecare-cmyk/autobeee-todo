@@ -20,6 +20,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { Task, Activity } from "@/lib/types";
 import { fadeUp, staggerContainer } from "@/lib/animations";
+import { PageHeader } from "@/components/common/PageHeader";
+import { StatCard } from "@/components/common/StatCard";
+import { SectionHeader } from "@/components/common/SectionHeader";
+import { AutoBeeBadge } from "@/components/common/AutoBeeBadge";
 
 const PERSON_COLOR: Record<string, string> = {
   Sourabh: "#FFC107", Asher: "#6366f1", Subin: "#22c55e",
@@ -247,74 +251,47 @@ export default function InsightsPage() {
   return (
     <motion.div
       initial="hidden" animate="show" variants={staggerContainer}
-      className="px-4 py-6 max-w-5xl mx-auto space-y-6"
+      className="px-4 py-5 max-w-5xl mx-auto space-y-4"
     >
-      <motion.div variants={fadeUp}>
-        <h1 className="text-2xl font-semibold tracking-tight">Insights</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Startup intelligence · {format(now, "MMMM yyyy")}</p>
-      </motion.div>
+      <PageHeader
+        title="Insights"
+        subtitle={`Startup intelligence · ${format(now, "MMMM yyyy")}`}
+      />
 
       {/* Top stats */}
       <motion.div variants={staggerContainer} className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {/* Completion Rate */}
-        <motion.div variants={fadeUp} className="rounded-2xl p-4 stat-card-amber">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Completion Rate</span>
-            <div className="w-8 h-8 flex items-center justify-center relative bg-white/5 rounded-full">
-              <svg className="w-8 h-8 transform -rotate-90">
-                <circle cx="16" cy="16" r="10" stroke="rgba(255,255,255,0.05)" strokeWidth="2" fill="transparent" />
-                <circle cx="16" cy="16" r="10" stroke="#FFC107" strokeWidth="2" fill="transparent"
-                  strokeDasharray={2 * Math.PI * 10}
-                  strokeDashoffset={2 * Math.PI * 10 * (1 - completionRate / 100)} />
-              </svg>
-              <span className="absolute text-[8px] font-semibold text-foreground/80">{completionRate}%</span>
-            </div>
-          </div>
-          <p className="text-2xl font-bold tabular-nums">{completionRate}%</p>
-          <p className="text-xs text-muted-foreground mt-0.5">{doneTasks}/{totalTasks} tasks</p>
-        </motion.div>
+        <StatCard
+          label="Completion Rate"
+          value={`${completionRate}%`}
+          subtitle={`${doneTasks}/${totalTasks} tasks done`}
+          highlight={false}
+          icon={<CheckCircle2 className="w-3.5 h-3.5 text-[#FFC107]" />}
+        />
 
-        {/* Active Goals */}
-        <motion.div variants={fadeUp} className="rounded-2xl p-4 stat-card-amber">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Active Goals</span>
-            <div className="w-7 h-7 rounded-xl flex items-center justify-center bg-white/5">
-              <Target className="w-3.5 h-3.5 text-muted-foreground" />
-            </div>
-          </div>
-          <p className="text-2xl font-bold tabular-nums">{goalStats.active}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">{goalStats.avgProgress}% avg progress</p>
-        </motion.div>
+        <StatCard
+          label="Active Goals"
+          value={goalStats.active}
+          subtitle={`${goalStats.avgProgress}% avg progress`}
+          highlight={false}
+          icon={<Target className="w-3.5 h-3.5 text-muted-foreground" />}
+        />
 
-        {/* Month Spend */}
-        <motion.div variants={fadeUp} className="rounded-2xl p-4 stat-card-amber">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Month Spend</span>
-            <div className="w-7 h-7 rounded-xl flex items-center justify-center bg-white/5">
-              <ActivityIcon className="w-3.5 h-3.5 text-muted-foreground" />
-            </div>
-          </div>
-          <p className="text-2xl font-bold tabular-nums">₹{monthTotal.toLocaleString("en-IN")}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">this month</p>
-        </motion.div>
+        <StatCard
+          label="Month Spend"
+          value={`₹${monthTotal.toLocaleString("en-IN")}`}
+          subtitle="Corporate spend"
+          highlight={false}
+          icon={<ActivityIcon className="w-3.5 h-3.5 text-muted-foreground" />}
+        />
 
-        {/* Overdue (pulses border if > 0) */}
-        <motion.div
-          variants={fadeUp}
-          className={cn(
-            "rounded-2xl p-4 stat-card-amber border",
-            overdueTasks.length > 0 ? "animate-[pulse_1.5s_infinite] border-red-500/50" : "border-white/10"
-          )}
-        >
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Overdue</span>
-            <div className="w-7 h-7 rounded-xl flex items-center justify-center bg-white/5">
-              <AlertCircle className={cn("w-3.5 h-3.5", overdueTasks.length > 0 ? "text-red-400" : "text-muted-foreground")} />
-            </div>
-          </div>
-          <p className="text-2xl font-bold tabular-nums">{overdueTasks.length}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">tasks overdue</p>
-        </motion.div>
+        <StatCard
+          label="Overdue Tasks"
+          value={overdueTasks.length}
+          subtitle={overdueTasks.length > 0 ? "Requires attention" : "All on schedule"}
+          highlight={overdueTasks.length > 0}
+          className={overdueTasks.length > 0 ? "border-red-500/40" : ""}
+          icon={<AlertCircle className={cn("w-3.5 h-3.5", overdueTasks.length > 0 ? "text-red-400" : "text-muted-foreground")} />}
+        />
       </motion.div>
 
       {/* Charts */}

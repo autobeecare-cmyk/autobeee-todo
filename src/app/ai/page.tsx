@@ -183,42 +183,42 @@ export default function AIPage() {
   return (
     <div className="flex flex-col h-[calc(100vh-56px-64px)] md:h-[calc(100vh-56px)] max-w-3xl mx-auto px-4">
       {/* Header */}
-      <div className="flex items-center justify-between py-5 border-b border-white/05">
+      <div className="flex items-center justify-between py-4 border-b border-white/[0.06]">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center overflow-hidden bg-white/5 border border-white/10">
-            <img src="/logo.png" alt="Autobee Logo" className="w-full h-full object-contain" />
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center overflow-hidden bg-white/5 border border-white/10 shrink-0">
+            <img src="/logo.png" alt="AutoBee Logo" className="w-full h-full object-contain" />
           </div>
           <div>
-            <h1 className="font-bold text-sm text-foreground/90">AI Co-pilot</h1>
-            <p className="text-[10px] text-muted-foreground">Powered by Gemini</p>
+            <h1 className="font-bold text-sm sm:text-base text-foreground/90 leading-tight">AI Co-pilot</h1>
+            <p className="text-[10px] text-muted-foreground">Startup workspace intelligence</p>
           </div>
         </div>
         {messages.length > 0 && (
-          <button onClick={clearChat} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg hover:bg-white/5 transition-colors">
+          <button onClick={clearChat} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-xl hover:bg-white/5 border border-white/05 transition-colors cursor-pointer">
             <RefreshCw className="w-3 h-3" />
-            Clear Chat
+            <span>Clear Chat</span>
           </button>
         )}
       </div>
 
       {/* Quick prompts */}
       {messages.length === 0 && (
-        <div className="py-6 flex-1 overflow-y-auto">
+        <div className="py-6 flex-1 overflow-y-auto flex flex-col justify-center">
           <div className="text-center mb-6">
-            <div className="w-14 h-14 rounded-2xl bee-gradient flex items-center justify-center mx-auto mb-3 bee-glow-sm float">
+            <div className="w-14 h-14 rounded-2xl bee-gradient flex items-center justify-center mx-auto mb-3 shadow-[0_0_20px_rgba(255,193,7,0.2)]">
               <Bot className="w-7 h-7 text-[#111]" />
             </div>
-            <h2 className="font-bold mb-1 text-foreground/95">Startup Operations Assistant</h2>
-            <p className="text-xs text-muted-foreground max-w-sm mx-auto">Ask me anything about Autobee. I have live context on tasks, active goals, and recent team expenses.</p>
+            <h2 className="font-bold text-base mb-1 text-foreground">Startup Operations Assistant</h2>
+            <p className="text-xs text-muted-foreground max-w-sm mx-auto">Ask me anything about AutoBee. I have live context on tasks, active goals, and recent team expenses.</p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-md mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-w-md mx-auto w-full">
             {QUICK_PROMPTS.map(prompt => (
               <motion.button
                 key={prompt}
                 whileHover={{ scale: 1.01 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => sendMessage(prompt)}
-                className="text-left px-4 py-3.5 rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground transition-all glass-card"
+                className="text-left px-4 py-3 rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground transition-all bg-[#141414]/90 border border-white/[0.08] hover:border-white/15 cursor-pointer shadow-sm"
               >
                 {prompt}
               </motion.button>

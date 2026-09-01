@@ -2,7 +2,17 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { sendPushNotification } from '../_shared/send-notification.ts'
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
 serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
   const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
   const fcmServerKey = Deno.env.get('FCM_SERVER_KEY') || ''
@@ -28,7 +38,7 @@ serve(async (req) => {
   if (!force && (dayOfWeek === 0 || dayOfWeek === 6)) {
     return new Response(
       JSON.stringify({ message: 'Weekend in IST — skipping attendance reminder', dateStr }),
-      { headers: { 'Content-Type': 'application/json' } }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
 
@@ -39,11 +49,11 @@ serve(async (req) => {
       ? '12pm'
       : '10am'
 
-  const title = reminderType === '10am' ? 'Office Check-in' : 'Final Office Check-in Reminder'
+  const title = reminderType === '10am' ? 'Good morning 👋' : 'Final check-in reminder'
   const body =
     reminderType === '10am'
-      ? "You haven't checked in today."
-      : "You haven't checked in today. This is your final reminder."
+      ? "Don't forget to check in at AutoBee."
+      : "You haven't checked in yet. You can check in while you're within 150m of AutoBee HQ."
 
   const ALL_FOUNDERS = ['Sourabh', 'Asher', 'Subin']
 

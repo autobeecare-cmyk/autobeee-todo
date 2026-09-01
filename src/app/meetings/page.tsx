@@ -242,6 +242,11 @@ function MeetingModal({ onClose, meeting }: { onClose: () => void; meeting?: Mee
   );
 }
 
+import { PageHeader } from "@/components/common/PageHeader";
+import { EmptyState } from "@/components/common/EmptyState";
+import { SectionHeader } from "@/components/common/SectionHeader";
+import { AutoBeeBadge } from "@/components/common/AutoBeeBadge";
+
 function MeetingCard({ meeting, onEdit, tasks }: { meeting: Meeting; onEdit: (meeting: Meeting) => void; tasks: Task[] }) {
   const [notesText, setNotesText] = useState(meeting.notes ?? "");
   const [editingNotes, setEditingNotes] = useState(false);
@@ -332,40 +337,40 @@ function MeetingCard({ meeting, onEdit, tasks }: { meeting: Meeting; onEdit: (me
     <motion.div
       variants={fadeUp}
       className={cn(
-        "rounded-2xl p-4.5 glass card-hover flex flex-col gap-3 group relative",
+        "rounded-2xl p-4 sm:p-5 bg-[#141414]/90 border border-white/[0.08] hover:border-white/15 hover:bg-[#181818]/90 transition-all flex flex-col gap-3 group relative shadow-sm backdrop-blur-md",
         meeting.status === "cancelled" && "opacity-55"
       )}
     >
-      <div className="flex items-start justify-between">
-        <div>
-          <h3 className="font-bold text-sm text-foreground/90">{meeting.title}</h3>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <h3 className="font-bold text-sm sm:text-base text-foreground/90 leading-snug truncate">{meeting.title}</h3>
           {meeting.description && (
-            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{meeting.description}</p>
+            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2 leading-relaxed">{meeting.description}</p>
           )}
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0">
           <span
             className={cn(
-              "text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase border",
+              "text-[9px] px-2 py-0.5 rounded-md font-bold uppercase border",
               meeting.status === "completed"
-                ? "bg-green-500/10 text-green-400 border-green-500/20"
+                ? "bg-green-500/15 text-green-400 border-green-500/30"
                 : meeting.status === "cancelled"
-                ? "bg-red-500/10 text-red-400 border-red-500/20"
-                : "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                ? "bg-red-500/15 text-red-400 border-red-500/30"
+                : "bg-blue-500/15 text-blue-400 border-blue-500/30"
             )}
           >
             {meeting.status}
           </span>
           <button
             onClick={() => onEdit(meeting)}
-            className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-white/10 text-muted-foreground hover:text-[#FFC107] transition-all max-md:opacity-100"
+            className="p-1 rounded-lg hover:bg-white/10 text-muted-foreground hover:text-[#FFC107] transition-all cursor-pointer"
             title="Edit Meeting"
           >
             <Edit className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={() => deleteMeeting(meeting.id)}
-            className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-500/10 text-muted-foreground hover:text-red-400 transition-all max-md:opacity-100"
+            className="p-1 rounded-lg hover:bg-red-500/10 text-muted-foreground hover:text-red-400 transition-all cursor-pointer"
             title="Delete Meeting"
           >
             <Trash2 className="w-3.5 h-3.5" />
@@ -374,7 +379,7 @@ function MeetingCard({ meeting, onEdit, tasks }: { meeting: Meeting; onEdit: (me
       </div>
 
       {/* Meet info metadata */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-muted-foreground font-medium border-t border-white/05 pt-2.5">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-muted-foreground font-medium border-t border-white/[0.06] pt-2.5">
         <div className="flex items-center gap-1.5">
           <Clock className="w-3.5 h-3.5 text-[#FFC107]" />
           <span>{format(parseISO(meeting.scheduledAt), "EEE, d MMM · h:mm a")} ({meeting.durationMinutes}m)</span>
@@ -384,7 +389,7 @@ function MeetingCard({ meeting, onEdit, tasks }: { meeting: Meeting; onEdit: (me
             href={meeting.meetingLink.startsWith("http") ? meeting.meetingLink : `https://${meeting.meetingLink}`}
             target="_blank"
             rel="noreferrer"
-            className="flex items-center gap-1 text-[#FFC107] hover:underline"
+            className="flex items-center gap-1 text-[#FFC107] hover:underline font-semibold"
           >
             <Video className="w-3.5 h-3.5" />
             <span>Video Call</span>
@@ -401,12 +406,12 @@ function MeetingCard({ meeting, onEdit, tasks }: { meeting: Meeting; onEdit: (me
       {/* Attendees list */}
       {meeting.attendees.length > 0 && (
         <div className="flex items-center gap-2 mt-0.5">
-          <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Attendees:</span>
+          <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Attendees:</span>
           <div className="flex -space-x-1.5 overflow-hidden">
             {meeting.attendees.map(att => (
               <div
                 key={att}
-                className="w-5.5 h-5.5 rounded-full flex items-center justify-center text-[9px] font-bold text-[#111] ring-2 ring-[var(--card)]"
+                className="w-5.5 h-5.5 rounded-full flex items-center justify-center text-[9px] font-bold text-[#111] ring-2 ring-[#141414]"
                 style={{ background: att === "Sourabh" ? "#FFC107" : att === "Asher" ? "#3B82F6" : "#10B981" }}
                 title={att}
               >
@@ -418,7 +423,7 @@ function MeetingCard({ meeting, onEdit, tasks }: { meeting: Meeting; onEdit: (me
       )}
 
       {/* Agenda toggle */}
-      <div className="border-t border-white/05 pt-2 mt-1 flex items-center justify-between">
+      <div className="border-t border-white/[0.06] pt-2 mt-1 flex items-center justify-between">
         <button
           onClick={() => setShowAgenda(!showAgenda)}
           className="text-xs text-[#FFC107] hover:underline font-semibold flex items-center gap-1 cursor-pointer select-none"
@@ -664,29 +669,24 @@ export default function MeetingsPage() {
       initial="hidden"
       animate="show"
       variants={staggerContainer}
-      className="px-4 py-6 max-w-5xl mx-auto space-y-6"
+      className="px-4 py-5 max-w-5xl mx-auto space-y-4"
     >
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-[#FFC107]" />
-            Meetings
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {upcomingCount} upcoming meetings scheduled
-          </p>
-        </div>
-        <motion.button
-          whileTap={{ scale: 0.96 }}
-          whileHover={{ scale: 1.02 }}
-          onClick={() => setCreating(true)}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bee-gradient text-[#111] text-sm font-semibold shadow-md"
-        >
-          <Plus className="w-4 h-4" strokeWidth={2.5} />
-          Create Meeting
-        </motion.button>
-      </div>
+      <PageHeader
+        title="Meetings"
+        subtitle={`${upcomingCount} upcoming session${upcomingCount === 1 ? "" : "s"} scheduled`}
+        actions={
+          <motion.button
+            whileTap={{ scale: 0.96 }}
+            whileHover={{ scale: 1.02 }}
+            onClick={() => setCreating(true)}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bee-gradient text-[#111] text-xs font-bold shadow-md cursor-pointer"
+          >
+            <Plus className="w-4 h-4" strokeWidth={2.5} />
+            <span>Create Meeting</span>
+          </motion.button>
+        }
+      />
 
       {/* Content */}
       {loading ? (
@@ -697,14 +697,18 @@ export default function MeetingsPage() {
         <div className="space-y-6">
           {/* Upcoming Section */}
           <div className="space-y-3">
-            <h2 className="text-xs font-medium uppercase tracking-widest text-muted-foreground/60 px-1">Upcoming & Recent</h2>
+            <SectionHeader title="Upcoming & Recent" subtitle={`${upcomingMeetings.length} sessions`} />
             {upcomingMeetings.length === 0 ? (
-              <div className="text-center py-12 border border-dashed border-white/[0.05] rounded-2xl">
-                <Calendar className="w-8 h-8 text-[#FFC107] mx-auto mb-2 opacity-40" />
-                <p className="text-sm text-muted-foreground">No upcoming or recent meetings. Click Schedule to plan one.</p>
-              </div>
+              <EmptyState
+                icon={<Calendar className="w-6 h-6" />}
+                title="No meetings scheduled"
+                description="Keep your team aligned by scheduling your next sync or client meeting."
+                actionText="+ Schedule Meeting"
+                onAction={() => setCreating(true)}
+                className="mt-4"
+              />
             ) : (
-              <motion.div variants={staggerContainer} initial="hidden" animate="show" className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <motion.div variants={staggerContainer} initial="hidden" animate="show" className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {upcomingMeetings.map(m => (
                   <MeetingCard key={m.id} meeting={m} onEdit={setEditingMeeting} tasks={tasks} />
                 ))}
@@ -714,10 +718,10 @@ export default function MeetingsPage() {
 
           {/* Past Collapsible Section */}
           {pastMeetings.length > 0 && (
-            <div className="border-t border-white/05 pt-4">
+            <div className="border-t border-white/[0.06] pt-4">
               <button
                 onClick={() => setPastOpen(!pastOpen)}
-                className="w-full flex items-center justify-between py-2 text-xs font-medium uppercase tracking-widest text-muted-foreground/60 px-1 select-none hover:text-foreground transition-colors"
+                className="w-full flex items-center justify-between py-2 text-xs font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground px-1 select-none transition-colors cursor-pointer"
               >
                 <span>Past Meetings ({pastMeetings.length})</span>
                 {pastOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -732,7 +736,7 @@ export default function MeetingsPage() {
                     transition={{ duration: 0.2 }}
                     className="overflow-hidden mt-3"
                   >
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pb-4">
                       {pastMeetings.map(m => (
                         <MeetingCard key={m.id} meeting={m} onEdit={setEditingMeeting} tasks={tasks} />
                       ))}
@@ -756,3 +760,4 @@ export default function MeetingsPage() {
     </motion.div>
   );
 }
+

@@ -2,7 +2,7 @@
 // src/components/layout/CommandPalette.tsx
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, CheckSquare, Target, Lightbulb, DollarSign, X } from "lucide-react";
+import { Search, CheckSquare, Target, Lightbulb, DollarSign, X, Clock } from "lucide-react";
 import { useUIStore } from "@/store/useUIStore";
 import { useTaskStore } from "@/store/useTaskStore";
 import { useGoalStore } from "@/store/useGoalStore";
@@ -49,6 +49,7 @@ export function CommandPalette() {
 
   const shortcuts = [
     { label: "Go to Dashboard", action: () => router.push("/"), icon: CheckSquare },
+    { label: "Go to Attendance & Work History", action: () => router.push("/attendance"), icon: Clock },
     { label: "Go to Tasks", action: () => router.push("/tasks"), icon: CheckSquare },
     { label: "Go to Money Tracker", action: () => router.push("/money"), icon: DollarSign },
     { label: "Go to AI Assistant", action: () => router.push("/ai"), icon: Target },

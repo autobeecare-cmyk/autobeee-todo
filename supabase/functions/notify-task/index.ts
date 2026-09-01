@@ -20,7 +20,7 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const fcmServerKey = Deno.env.get('FCM_SERVER_KEY')!
+    const fcmServerKey = Deno.env.get('FCM_SERVER_KEY') || ''
 
     let title = ''
     let body = ''
@@ -28,15 +28,20 @@ serve(async (req) => {
 
     // Determine who to notify
     const assignee = task.assignee || 'All'
-    const toUsers = assignee === 'All' ? allUsers : allUsers // notify everyone for team visibility
+    let toUsers = allUsers
+    if (type === 'assigned' && assignee && assignee !== 'All') {
+      toUsers = [assignee]
+    }
+
+    const isUrgent = task.priority === 'urgent'
 
     switch (type) {
       case 'created':
-        title = '📋 New Task Created'
+        title = isUrgent ? '🚨 Urgent Task Created' : '📋 New Task Created'
         body = `${task.title}${task.assignee ? ` — assigned to ${task.assignee}` : ''}`
         break
       case 'assigned':
-        title = '👤 Task Assigned to You'
+        title = isUrgent ? '🚨 Urgent Task Assigned to You' : '👤 Task Assigned to You'
         body = `${task.title}${task.deadline ? ` — due ${new Date(task.deadline).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : ''}`
         break
       case 'completed':
@@ -44,7 +49,7 @@ serve(async (req) => {
         body = task.title
         break
       case 'updated':
-        title = '📝 Task Updated'
+        title = isUrgent ? '🚨 Urgent Task Updated' : '📝 Task Updated'
         body = task.title
         break
       default:
@@ -59,6 +64,7 @@ serve(async (req) => {
       type: 'task_reminder',
       entityId: task.id,
       entityType: 'task',
+      priority: isUrgent ? 'high' : 'normal',
       supabaseUrl,
       supabaseKey,
       fcmServerKey,

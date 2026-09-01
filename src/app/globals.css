@@ -384,7 +384,72 @@
   }
 }
 
-/* Glass card system */
+/* ──────────────────────────────────────────────
+   AutoBee Premium Glassmorphic Card System
+────────────────────────────────────────────── */
+.glass-card-premium {
+  background: linear-gradient(145deg, rgba(26, 26, 26, 0.72) 0%, rgba(15, 15, 15, 0.85) 100%);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37), inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+  border-radius: 20px;
+}
+
+.glass-card-interactive {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.glass-card-interactive:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.45), inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+}
+
+.glass-card-glow-yellow {
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4), 0 0 25px -5px rgba(255, 193, 7, 0.15), inset 0 1px 0 0 rgba(255, 193, 7, 0.15);
+  border-color: rgba(255, 193, 7, 0.25);
+}
+
+.glass-card-glow-emerald {
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4), 0 0 25px -5px rgba(16, 185, 129, 0.18), inset 0 1px 0 0 rgba(16, 185, 129, 0.2);
+  border-color: rgba(16, 185, 129, 0.28);
+}
+
+.glass-card-glow-amber {
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4), 0 0 25px -5px rgba(245, 158, 11, 0.18), inset 0 1px 0 0 rgba(245, 158, 11, 0.2);
+  border-color: rgba(245, 158, 11, 0.28);
+}
+
+.glass-card-glow-blue {
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4), 0 0 25px -5px rgba(59, 130, 246, 0.15), inset 0 1px 0 0 rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.22);
+}
+
+/* Glass Pill Tags */
+.glass-pill {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 9999px;
+}
+
+/* Workday Swipe Gesture Area */
+.touch-pan-y {
+  touch-action: pan-y;
+}
+
+.swipe-track-idle {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 193, 7, 0.06) 50%, rgba(255, 193, 7, 0.12) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.swipe-track-active {
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.08) 0%, rgba(245, 158, 11, 0.06) 50%, rgba(16, 185, 129, 0.08) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Glass card system standard fallbacks */
 .glass {
   background: rgba(255, 255, 255, 0.03);
   backdrop-filter: blur(16px) saturate(160%);
@@ -409,19 +474,16 @@
   border-radius: 24px;
 }
 
-/* Amber glow for active/featured elements */
 .amber-glow {
   box-shadow: 0 0 24px rgba(255, 193, 7, 0.12), 0 0 48px rgba(255, 193, 7, 0.06);
 }
 
-/* Subtle inner glow on hover */
 .glass:hover, .glass-md:hover {
   border-color: rgba(255, 255, 255, 0.14);
   background: rgba(255, 255, 255, 0.05);
   transition: all 0.2s ease;
 }
 
-/* Gradient shimmer on stat cards */
 .stat-card-amber {
   background: linear-gradient(135deg, rgba(255,193,7,0.08) 0%, rgba(255,193,7,0.02) 100%);
   border: 1px solid rgba(255,193,7,0.15);
@@ -429,7 +491,7 @@
 }
 
 @supports not (backdrop-filter: blur(1px)) {
-  .glass, .glass-md, .glass-strong {
-    background: rgba(20, 20, 20, 0.92);
+  .glass, .glass-md, .glass-strong, .glass-card-premium {
+    background: rgba(20, 20, 20, 0.95);
   }
 }

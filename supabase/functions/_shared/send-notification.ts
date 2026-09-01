@@ -282,10 +282,13 @@ export async function sendPushNotification({
           } else {
             failureCount++
             const errStatus = result.error?.status || result.error?.details?.[0]?.errorCode
+            const errMsg = String(result.error?.message || '')
             const isUnregistered =
               errStatus === 'UNREGISTERED' ||
               errStatus === 'INVALID_ARGUMENT' ||
-              result.error?.message?.includes('registration-token-not-registered')
+              errMsg.includes('registration-token-not-registered') ||
+              errMsg.includes('NotRegistered') ||
+              errMsg.includes('Device unregistered')
 
             if (isUnregistered) {
               expiredTokens.push(t.fcm_token)
@@ -376,7 +379,7 @@ export async function sendPushNotification({
     console.warn('No FCM HTTP v1 credentials or Legacy Server Key configured')
   }
 
-  // 3. Log notification attempt in notification_log table
+  // 3. Log notification attempt in notification_log table matching database schema
   try {
     await fetch(`${supabaseUrl}/rest/v1/notification_log`, {
       method: 'POST',
@@ -388,14 +391,18 @@ export async function sendPushNotification({
       body: JSON.stringify({
         title,
         body,
-        type,
-        entity_type: entityType,
-        entity_id: entityId,
+        type: String(type || 'system'),
+        entity_type: entityType || null,
+        entity_id: entityId || null,
         sent_to: toUsers,
         tokens_count: tokens.length,
-        success_count: successCount,
-        failure_count: failureCount,
-        details: { results: fcmResults, method: useV1 ? 'v1' : 'legacy' },
+        sent_at: new Date().toISOString(),
+        metadata: {
+          success_count: successCount,
+          failure_count: failureCount,
+          results: fcmResults,
+          method: useV1 ? 'v1' : 'legacy',
+        },
       }),
     })
   } catch (logErr) {

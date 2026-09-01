@@ -44,8 +44,40 @@ export async function POST(req: Request) {
       toUsers = Array.isArray(recipient) ? recipient : [recipient]
     }
 
-    // Call Supabase Edge Function notify-attendance or notify-task
-    const endpoint = `${supabaseUrl}/functions/v1/notify-attendance`
+    // Determine appropriate Edge Function endpoint based on notification type
+    let endpoint = `${supabaseUrl}/functions/v1/notify-attendance`
+    let payload: any = {
+      type,
+      founderName: actor,
+      title,
+      body: content,
+      toUsers,
+      workday: entityId ? { id: entityId } : undefined,
+    }
+
+    if (type === 'task' || type === 'task_reminder') {
+      endpoint = `${supabaseUrl}/functions/v1/notify-task`
+      payload = {
+        type: 'created',
+        task: {
+          id: entityId || `task-${Date.now()}`,
+          title: content || title,
+          assignee: recipient === 'All' ? undefined : recipient,
+          priority: priority || 'normal',
+        },
+      }
+    } else if (type === 'meeting' || type === 'meeting_alert' || type === 'meeting_change') {
+      endpoint = `${supabaseUrl}/functions/v1/notify-meeting`
+      payload = {
+        type: type === 'meeting_alert' ? 'reminder' : 'updated',
+        meeting: {
+          id: entityId || `meet-${Date.now()}`,
+          title: content || title,
+          attendees: toUsers,
+          scheduled_at: new Date().toISOString(),
+        },
+      }
+    }
 
     const edgeRes = await fetch(endpoint, {
       method: 'POST',
@@ -53,14 +85,7 @@ export async function POST(req: Request) {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${supabaseAnonKey}`,
       },
-      body: JSON.stringify({
-        type,
-        founderName: actor,
-        title,
-        body: content,
-        toUsers,
-        workday: entityId ? { id: entityId } : undefined,
-      }),
+      body: JSON.stringify(payload),
     })
 
     if (!edgeRes.ok) {

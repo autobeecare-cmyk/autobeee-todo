@@ -129,17 +129,35 @@ export const setupForegroundNotifications = async () => {
     const title = payload.notification?.title || data.title || 'Autobee OS'
     const body = payload.notification?.body || data.body || ''
 
-    if (Notification.permission === 'granted') {
-      try {
-        new Notification(title, {
-          body,
-          icon: '/icon-192.png',
-          badge: '/icon-192.png',
-          tag: data.entity_id ? `autobee-${data.entity_id}` : `autobee-${data.type || 'msg'}-${Date.now()}`,
-          data,
-        })
-      } catch (err) {
-        console.error('[FCM] Error displaying native foreground notification:', err)
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      const options: NotificationOptions = {
+        body,
+        icon: '/icon-192.png',
+        badge: '/icon-192.png',
+        tag: data.entity_id ? `autobee-${data.entity_id}` : `autobee-${data.type || 'msg'}-${Date.now()}`,
+        data,
+      }
+
+      // On mobile browsers (Android Chrome, iOS PWA), 'new Notification()' throws:
+      // "Illegal constructor. Use ServiceWorkerRegistration.showNotification() instead."
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.ready
+          .then((registration) => {
+            return registration.showNotification(title, options)
+          })
+          .catch(() => {
+            try {
+              new Notification(title, options)
+            } catch (err) {
+              console.error('[FCM] Error displaying foreground notification:', err)
+            }
+          })
+      } else {
+        try {
+          new Notification(title, options)
+        } catch (err) {
+          console.error('[FCM] Error displaying native foreground notification:', err)
+        }
       }
     }
   })

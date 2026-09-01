@@ -29,8 +29,8 @@ const STATUS_ICON = {
 };
 
 function GoalCard({ goal, onEdit, tasks }: { goal: Goal; onEdit: (g: Goal) => void; tasks: Task[] }) {
-  const catColor = CAT_COLOR[goal.category];
-  const Icon = STATUS_ICON[goal.status];
+  const catColor = CAT_COLOR[goal.category] || "#FFC107";
+  const Icon = STATUS_ICON[goal.status] || TrendingUp;
 
   const linkedTasks = tasks.filter(t => goal.linkedTaskIds?.includes(t.id));
   const totalTasks = goal.linkedTaskIds?.length || 0;
@@ -42,62 +42,81 @@ function GoalCard({ goal, onEdit, tasks }: { goal: Goal; onEdit: (g: Goal) => vo
     <motion.div
       layout
       variants={fadeUp}
-      className="rounded-2xl p-5 cursor-pointer card-hover glass"
+      className="rounded-2xl p-5 cursor-pointer bg-[#141414]/90 border border-white/[0.08] hover:border-white/15 hover:bg-[#181818]/90 transition-all shadow-sm backdrop-blur-md flex flex-col justify-between"
       onClick={() => onEdit(goal)}
     >
-      <div className="flex items-start justify-between mb-3">
-        <div
-          className="px-2 py-1 rounded-lg text-[10px] font-semibold capitalize"
-          style={{ background: catColor + "18", color: catColor }}
-        >
-          {goal.category}
-        </div>
-        <Icon
-          className="w-4 h-4"
-          style={{ color: goal.status === "completed" ? "#22c55e" : goal.status === "paused" ? "#6b7280" : catColor }}
-        />
-      </div>
-
-      <h3 className="font-semibold text-sm mb-1 leading-snug">{goal.title}</h3>
-      {goal.description && (
-        <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{goal.description}</p>
-      )}
-
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-muted-foreground">Progress</span>
-          <span className="font-semibold" style={{ color: catColor }}>{goal.progress}%</span>
-        </div>
-        <Progress value={goal.progress} className="h-2" />
-      </div>
-
-      {totalTasks > 0 && (
-        <div className="mt-4 pt-3 border-t border-white/05 space-y-2" onClick={e => e.stopPropagation()}>
-          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-            <span className="font-semibold uppercase tracking-wider text-[9px]">Linked Tasks</span>
-            <span>{completedTasks}/{totalTasks} done</span>
+      <div>
+        <div className="flex items-start justify-between mb-3">
+          <div
+            className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide border"
+            style={{
+              background: catColor + "15",
+              color: catColor,
+              borderColor: catColor + "30",
+            }}
+          >
+            {goal.category}
           </div>
-          
-          <Progress value={taskProgress} className="h-1 bg-white/5" />
-          
-          <div className="space-y-1 max-h-24 overflow-y-auto pr-1">
-            {linkedTasks.map(t => (
-              <div key={t.id} className="flex items-center justify-between text-[10px] bg-white/[0.01] hover:bg-white/[0.03] p-1.5 rounded-lg border border-white/[0.03]">
-                <span className="truncate flex-1 pr-2 text-foreground/80">{t.title}</span>
-                <span className={cn(
-                  "px-1 py-0.2 rounded text-[8px] uppercase font-bold",
-                  t.status === "doing" ? "bg-amber-500/10 text-amber-400" : "bg-gray-500/10 text-gray-400"
-                )}>
-                  {t.status}
-                </span>
-              </div>
-            ))}
+          <Icon
+            className="w-4 h-4"
+            style={{ color: goal.status === "completed" ? "#22c55e" : goal.status === "paused" ? "#6b7280" : catColor }}
+          />
+        </div>
+
+        <h3 className="font-bold text-sm sm:text-base text-foreground/90 mb-1 leading-snug">{goal.title}</h3>
+        {goal.description && (
+          <p className="text-xs text-muted-foreground line-clamp-2 mb-3 leading-relaxed">{goal.description}</p>
+        )}
+
+        <div className="space-y-1.5 mt-3">
+          <div className="flex items-center justify-between text-xs font-semibold">
+            <span className="text-muted-foreground text-[11px]">Progress</span>
+            <span className="tabular-nums" style={{ color: catColor }}>{goal.progress}%</span>
+          </div>
+          <div className="w-full bg-white/[0.06] h-2 rounded-full overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{
+                width: `${goal.progress}%`,
+                background: catColor,
+              }}
+            />
           </div>
         </div>
-      )}
+
+        {totalTasks > 0 && (
+          <div className="mt-4 pt-3 border-t border-white/[0.06] space-y-2" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+              <span className="font-bold uppercase tracking-wider text-[9px]">Linked Tasks</span>
+              <span className="font-medium">{completedTasks}/{totalTasks} done</span>
+            </div>
+            
+            <div className="w-full bg-white/[0.04] h-1 rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full bg-emerald-400/80 transition-all duration-300"
+                style={{ width: `${taskProgress}%` }}
+              />
+            </div>
+            
+            <div className="space-y-1 max-h-24 overflow-y-auto pr-1 no-scrollbar">
+              {linkedTasks.map(t => (
+                <div key={t.id} className="flex items-center justify-between text-[10px] bg-white/[0.02] hover:bg-white/[0.04] p-1.5 rounded-lg border border-white/[0.04]">
+                  <span className="truncate flex-1 pr-2 text-foreground/80 font-medium">{t.title}</span>
+                  <span className={cn(
+                    "px-1.5 py-0.2 rounded text-[8px] uppercase font-bold border",
+                    t.status === "doing" ? "bg-amber-500/10 text-amber-400 border-amber-500/20" : "bg-white/[0.03] text-muted-foreground border-white/05"
+                  )}>
+                    {t.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
 
       {goal.targetDate && (
-        <p className="text-[10px] text-muted-foreground mt-3">
+        <p className="text-[10px] text-muted-foreground font-mono mt-3.5 pt-2 border-t border-white/[0.04]">
           Target: {format(new Date(goal.targetDate), "d MMM yyyy")}
         </p>
       )}
@@ -289,6 +308,10 @@ function GoalModal({ goal, onClose }: { goal: Goal | null; onClose: () => void }
   );
 }
 
+import { PageHeader } from "@/components/common/PageHeader";
+import { EmptyState } from "@/components/common/EmptyState";
+import { SectionHeader } from "@/components/common/SectionHeader";
+
 export default function GoalsPage() {
   const { goals, loading, subscribeToGoals } = useGoalStore();
   const { tasks, subscribeToTasks } = useTaskStore();
@@ -323,35 +346,34 @@ export default function GoalsPage() {
       initial="hidden"
       animate="show"
       variants={staggerContainer}
-      className="px-4 py-6 max-w-5xl mx-auto"
+      className="px-4 py-5 max-w-5xl mx-auto space-y-4"
     >
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Goals</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {goals.filter(g => g.status === "active").length} active · {avgProgress}% avg progress
-          </p>
-        </div>
-        <motion.button
-          whileTap={{ scale: 0.96 }}
-          whileHover={{ scale: 1.02 }}
-          onClick={() => setCreating(true)}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bee-gradient text-[#111] text-sm font-semibold"
-        >
-          <Plus className="w-4 h-4" strokeWidth={2.5} /> New Goal
-        </motion.button>
-      </div>
+      <PageHeader
+        title="Goals"
+        subtitle={`${goals.filter(g => g.status === "active").length} active · ${avgProgress}% average progress`}
+        actions={
+          <motion.button
+            whileTap={{ scale: 0.96 }}
+            whileHover={{ scale: 1.02 }}
+            onClick={() => setCreating(true)}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bee-gradient text-[#111] text-xs font-bold shadow-md cursor-pointer"
+          >
+            <Plus className="w-4 h-4" strokeWidth={2.5} />
+            <span>New Goal</span>
+          </motion.button>
+        }
+      />
 
-      <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar pb-1">
+      <div className="flex gap-2 overflow-x-auto no-scrollbar py-0.5">
         {["all", ...CATEGORIES].map(cat => (
           <button
             key={cat}
             onClick={() => setFilterCat(cat as GoalCategory | "all")}
             className={cn(
-              "px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all border",
+              "px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all border cursor-pointer",
               filterCat === cat
-                ? "bee-gradient text-[#111] border-transparent"
-                : "bg-white/5 text-muted-foreground border-white/08 hover:text-foreground"
+                ? "bg-[#FFC107]/20 text-[#FFC107] border-[#FFC107]/35"
+                : "bg-white/[0.02] text-muted-foreground border-white/05 hover:bg-white/[0.04]"
             )}
           >
             {cat === "all" ? "All" : cat.charAt(0).toUpperCase() + cat.slice(1)}
@@ -360,33 +382,28 @@ export default function GoalsPage() {
       </div>
 
       {loading && showSkeleton ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-44 rounded-2xl" />)}
         </div>
       ) : (!loading || !showSkeleton) && filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="w-16 h-16 rounded-full glass-md flex items-center justify-center mb-4">
-            <Target className="w-8 h-8 text-amber-400/60" />
-          </div>
-          <h3 className="text-lg font-medium mb-2">No goals yet</h3>
-          <p className="text-sm text-muted-foreground mb-6">Set your first goal to start tracking progress</p>
-          <button
-            onClick={() => setCreating(true)}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bee-gradient text-[#111] text-sm font-semibold shadow-md"
-          >
-            + New Goal
-          </button>
-        </div>
+        <EmptyState
+          icon={<Target className="w-6 h-6" />}
+          title="No goals yet"
+          description="Set your first milestone to track progress toward your vision."
+          actionText="+ New Goal"
+          onAction={() => setCreating(true)}
+          className="mt-6"
+        />
       ) : (
         <div className="space-y-6">
           {active.length > 0 && (
-            <div>
-              <h2 className="text-xs font-medium uppercase tracking-widest text-muted-foreground/60 mb-3">Active</h2>
+            <div className="space-y-3">
+              <SectionHeader title="Active Goals" subtitle={`${active.length} in progress`} />
               <motion.div
                 variants={staggerContainer}
                 initial="hidden"
                 animate="show"
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"
               >
                 {active.map(g => (
                   <motion.div key={g.id} variants={fadeUp}>
@@ -398,13 +415,13 @@ export default function GoalsPage() {
           )}
 
           {paused.length > 0 && (
-            <div>
-              <h2 className="text-xs font-medium uppercase tracking-widest text-muted-foreground/60 mb-3">Paused</h2>
+            <div className="space-y-3">
+              <SectionHeader title="Paused Goals" subtitle={`${paused.length} on hold`} />
               <motion.div
                 variants={staggerContainer}
                 initial="hidden"
                 animate="show"
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"
               >
                 {paused.map(g => (
                   <motion.div key={g.id} variants={fadeUp}>
@@ -416,13 +433,13 @@ export default function GoalsPage() {
           )}
 
           {completed.length > 0 && (
-            <div>
-              <h2 className="text-xs font-medium uppercase tracking-widest text-muted-foreground/60 mb-3">Completed</h2>
+            <div className="space-y-3">
+              <SectionHeader title="Completed Goals" subtitle={`${completed.length} achieved`} />
               <motion.div
                 variants={staggerContainer}
                 initial="hidden"
                 animate="show"
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"
               >
                 {completed.map(g => (
                   <motion.div key={g.id} variants={fadeUp}>

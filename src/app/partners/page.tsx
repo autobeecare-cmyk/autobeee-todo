@@ -26,6 +26,10 @@ import { cn } from "@/lib/utils";
 import type { Partner, PartnerInteraction, Document } from "@/lib/types";
 import { fadeUp, staggerContainer } from "@/lib/animations";
 import { addInteraction, getInteractions } from "@/lib/supabase/partners";
+import { PageHeader } from "@/components/common/PageHeader";
+import { StatCard } from "@/components/common/StatCard";
+import { EmptyState } from "@/components/common/EmptyState";
+import { AutoBeeBadge } from "@/components/common/AutoBeeBadge";
 
 const COLUMNS: { id: Partner['pipeline_status']; label: string; color: string; bg: string }[] = [
   { id: "Wishlist",    label: "Wishlist",    color: "#6b7280", bg: "rgba(107,114,128,0.12)" },
@@ -1506,48 +1510,53 @@ export default function PartnersCRMPage() {
   };
 
   return (
-    <div className="px-4 py-6 max-w-6xl mx-auto space-y-6">
+    <div className="px-4 py-5 max-w-6xl mx-auto space-y-4">
       {/* Header bar */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground/95 flex items-center gap-2">
-            <Handshake className="w-6 h-6 text-[#FFC107]" />
-            Partners CRM Funnel
-          </h1>
-          <p className="text-xs text-muted-foreground mt-0.5">Startup Outreach, Leads classification and Onboarding logs</p>
-        </div>
-        <motion.button
-          whileTap={{ scale: 0.96 }}
-          onClick={() => setCreatingPartner(true)}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bee-gradient text-[#111] text-sm font-semibold shadow-md"
-        >
-          <Plus className="w-4 h-4" strokeWidth={2.5} />
-          Add Partner Lead
-        </motion.button>
-      </div>
+      <PageHeader
+        title="Partners CRM"
+        subtitle="Startup Outreach, Leads classification and Onboarding logs"
+        actions={
+          <motion.button
+            whileTap={{ scale: 0.96 }}
+            onClick={() => setCreatingPartner(true)}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bee-gradient text-[#111] text-xs font-bold shadow-md cursor-pointer"
+          >
+            <Plus className="w-4 h-4" strokeWidth={2.5} />
+            <span>Add Partner Lead</span>
+          </motion.button>
+        }
+      />
 
       {/* Section 1 — Stats Bar */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[
-          { label: "Total Leads", count: totalCount, filter: "all" as const, activeColor: "border-white/20 text-foreground" },
-          { label: "Interested", count: interestedCount, filter: "interested" as const, activeColor: "border-green-500/40 text-green-400" },
-          { label: "Follow-Up Due", count: followUpCount, filter: "followup" as const, activeColor: "border-amber-500/40 text-[#FFC107] animate-[pulse_3s_infinite]" },
-          { label: "Onboarded Partner", count: joinedCount, filter: "joined" as const, activeColor: "border-emerald-500/40 text-emerald-400" }
-        ].map(chip => (
-          <button
-            key={chip.label}
-            onClick={() => setQuickFilter(quickFilter === chip.filter ? "all" : chip.filter)}
-            className={cn(
-              "p-3 rounded-xl border text-left cursor-pointer transition-all",
-              quickFilter === chip.filter
-                ? chip.activeColor + " bg-white/[0.05]"
-                : "bg-white/[0.01] border-white/05 hover:bg-white/[0.03] text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <span className="text-[10px] uppercase font-bold tracking-wider">{chip.label}</span>
-            <div className="text-xl font-bold mt-1.5">{chip.count}</div>
-          </button>
-        ))}
+        <StatCard
+          label="Total Leads"
+          value={totalCount}
+          subtitle="All CRM entries"
+          onClick={() => setQuickFilter(quickFilter === "all" ? "all" : "all")}
+          highlight={quickFilter === "all"}
+        />
+        <StatCard
+          label="Interested"
+          value={interestedCount}
+          subtitle="High & Medium intent"
+          onClick={() => setQuickFilter(quickFilter === "interested" ? "all" : "interested")}
+          highlight={quickFilter === "interested"}
+        />
+        <StatCard
+          label="Follow-Up Due"
+          value={followUpCount}
+          subtitle={followUpCount > 0 ? "Action required" : "No pending follow-ups"}
+          onClick={() => setQuickFilter(quickFilter === "followup" ? "all" : "followup")}
+          highlight={quickFilter === "followup"}
+        />
+        <StatCard
+          label="Onboarded"
+          value={joinedCount}
+          subtitle="Active network partners"
+          onClick={() => setQuickFilter(quickFilter === "joined" ? "all" : "joined")}
+          highlight={quickFilter === "joined"}
+        />
       </div>
 
       {/* Section 2 — Filters bar (Sticky on Scroll) */}
@@ -1612,17 +1621,14 @@ export default function PartnersCRMPage() {
       {loading ? (
         <div className="p-12 text-center text-muted-foreground">Loading Partners data...</div>
       ) : filteredPartners.length === 0 ? (
-        <div className="flex flex-col items-center justify-center text-center p-16 rounded-2xl bg-white/[0.01] border border-dashed border-white/05">
-          <Handshake className="w-12 h-12 text-[#FFC107] mb-3 opacity-60 float" />
-          <h3 className="font-bold text-base text-foreground/90">No partners found</h3>
-          <p className="text-xs text-muted-foreground mt-1 max-w-xs">There are no leads matching your selected criteria. Try adjusting the search query or filters.</p>
-          <button
-            onClick={() => { setSearch(""); setFilterType("all"); setFilterArea("all"); setFilterStatus("all"); setQuickFilter("all"); }}
-            className="mt-4 text-xs text-[#FFC107] hover:underline"
-          >
-            Clear Filters
-          </button>
-        </div>
+        <EmptyState
+          icon={<Handshake className="w-6 h-6" />}
+          title="No partners found"
+          description="No leads match your selected criteria. Try adjusting the search query or filters."
+          actionText="Clear Filters"
+          onAction={() => { setSearch(""); setFilterType("all"); setFilterArea("all"); setFilterStatus("all"); setQuickFilter("all"); }}
+          className="mt-6"
+        />
       ) : view === "pipeline" ? (
         /* Section 3 — Kanban Pipeline View */
         <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>

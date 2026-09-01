@@ -10,6 +10,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { Idea, IdeaCategory } from "@/lib/types";
 import { fadeUp, staggerContainer } from "@/lib/animations";
+import { PageHeader } from "@/components/common/PageHeader";
+import { EmptyState } from "@/components/common/EmptyState";
 
 
 const CAT_CONFIG: Record<IdeaCategory, { label: string; color: string; icon: React.ElementType }> = {
@@ -212,33 +214,33 @@ export default function IdeasPage() {
       initial="hidden"
       animate="show"
       variants={staggerContainer}
-      className="px-4 py-6 max-w-5xl mx-auto"
+      className="px-4 py-5 max-w-5xl mx-auto space-y-4"
     >
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Ideas Vault</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{ideas.length} ideas captured</p>
-        </div>
-        <motion.button
-          whileTap={{ scale: 0.96 }}
-          whileHover={{ scale: 1.02 }}
-          onClick={() => setCreating(true)}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bee-gradient text-[#111] text-sm font-semibold"
-        >
-          <Plus className="w-4 h-4" strokeWidth={2.5} />
-          Capture
-        </motion.button>
-      </div>
+      <PageHeader
+        title="Ideas Vault"
+        subtitle={`${ideas.length} ideas captured`}
+        actions={
+          <motion.button
+            whileTap={{ scale: 0.96 }}
+            whileHover={{ scale: 1.02 }}
+            onClick={() => setCreating(true)}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bee-gradient text-[#111] text-xs font-bold shadow-md cursor-pointer"
+          >
+            <Plus className="w-4 h-4" strokeWidth={2.5} />
+            <span>Capture Idea</span>
+          </motion.button>
+        }
+      />
 
       {/* Search + filter */}
-      <div className="flex items-center gap-2 mb-4 flex-wrap">
+      <div className="flex items-center gap-2 flex-wrap bg-white/[0.02] border border-white/[0.06] p-2.5 rounded-2xl">
         <div className="relative flex-1 min-w-[140px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <input
             value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search ideas..."
-            className="w-full pl-8 pr-3 py-2 rounded-xl bg-white/5 border border-white/08 text-sm outline-none focus:border-[rgba(255,193,7,0.3)] transition-colors"
+            className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-white/5 border border-white/08 text-xs outline-none focus:border-[rgba(255,193,7,0.3)] transition-colors text-foreground"
           />
         </div>
         <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
@@ -247,10 +249,10 @@ export default function IdeasPage() {
               key={cat}
               onClick={() => setFilterCat(cat as IdeaCategory | "all")}
               className={cn(
-                "px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all border",
+                "px-3 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all border cursor-pointer",
                 filterCat === cat
-                  ? "bee-gradient text-[#111] border-transparent"
-                  : "bg-white/5 text-muted-foreground border-white/08 hover:text-foreground"
+                  ? "bee-gradient text-[#111] border-transparent font-extrabold"
+                  : "bg-white/5 text-muted-foreground border-white/08 hover:text-foreground hover:bg-white/10"
               )}
             >
               {cat === "all" ? "All" : CAT_CONFIG[cat as IdeaCategory].label}
@@ -265,10 +267,14 @@ export default function IdeasPage() {
           {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-40 rounded-2xl" />)}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-20">
-          <Lightbulb className="w-12 h-12 text-[#FFC107] mx-auto mb-3 opacity-40" />
-          <p className="text-muted-foreground text-sm">No ideas yet. Capture your first one!</p>
-        </div>
+        <EmptyState
+          icon={<Lightbulb className="w-6 h-6" />}
+          title="No ideas yet"
+          description="Capture new startup concepts, feature requests, or market opportunities."
+          actionText="+ Capture Idea"
+          onAction={() => setCreating(true)}
+          className="mt-6"
+        />
       ) : (
         <motion.div variants={staggerContainer} initial="hidden" animate="show" className="columns-1 sm:columns-2 lg:columns-3 gap-4">
           {filtered.map(idea => (

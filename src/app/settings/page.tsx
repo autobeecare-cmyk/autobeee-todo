@@ -14,6 +14,8 @@ import { useGoalStore } from "@/store/useGoalStore";
 import { useExpenseStore } from "@/store/useExpenseStore";
 import { useIdeaStore } from "@/store/useIdeaStore";
 import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/common/PageHeader";
+import { SectionHeader } from "@/components/common/SectionHeader";
 
 const SHORTCUTS = [
   { key: "Ctrl + K", label: "Open command palette" },
@@ -82,22 +84,21 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="px-4 py-6 max-w-2xl mx-auto space-y-6">
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="text-xl font-bold">Settings</h1>
-        <p className="text-xs text-muted-foreground mt-0.5">Autobee OS · Internal workspace</p>
-      </motion.div>
+    <div className="px-4 py-5 max-w-2xl mx-auto space-y-5">
+      <PageHeader
+        title="Settings"
+        subtitle="AutoBee OS · Internal workspace configurations"
+      />
 
       {/* App info banner */}
       <div
-        className="rounded-2xl p-4 flex items-center gap-4"
-        style={{ background: "rgba(255,193,7,0.08)", border: "1px solid rgba(255,193,7,0.15)" }}
+        className="rounded-2xl p-4 flex items-center gap-4 bg-white/[0.02] border border-white/[0.06]"
       >
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden bg-white/5 border border-white/10">
-          <img src="/logo.png" alt="Autobee Logo" className="w-full h-full object-contain" />
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden bg-white/5 border border-white/10 shrink-0">
+          <img src="/logo.png" alt="AutoBee Logo" className="w-full h-full object-contain" />
         </div>
         <div>
-          <p className="font-bold text-sm">Autobee OS</p>
+          <p className="font-bold text-sm text-foreground">AutoBee OS</p>
           <p className="text-xs text-muted-foreground">Internal startup workspace · v1.0.0</p>
         </div>
       </div>

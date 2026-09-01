@@ -22,6 +22,8 @@ import type {
   RoadmapHiring, RoadmapMarketing, RoadmapFinance, RoadmapRisk, Task, Goal, Meeting, Person, Priority
 } from "@/lib/types";
 import { fadeUp, staggerContainer } from "@/lib/animations";
+import { PageHeader } from "@/components/common/PageHeader";
+import { EmptyState } from "@/components/common/EmptyState";
 
 // Color palettes for UI hierarchy
 const PHASE_COLORS = ["#FFC107", "#3b82f6", "#10b981", "#8b5cf6", "#ec4899"];
@@ -769,66 +771,60 @@ Answer the user's question clearly and concisely. Focus on blockers, delayed ite
   return (
     <motion.div
       initial="hidden" animate="show" variants={staggerContainer}
-      className="px-4 py-6 max-w-6xl mx-auto space-y-6 relative"
+      className="px-4 py-5 max-w-6xl mx-auto space-y-4 relative"
     >
       {/* Top Banner & Strategy Import controls */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/05 pb-5">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <TrendingUp className="w-6 h-6 text-[#FFC107]" />
-            Company Roadmap
-          </h1>
-          <p className="text-xs text-muted-foreground mt-1">
-            Central strategy engine for founders. Overall Company Progress: <span className="text-[#FFC107] font-semibold">{overallProgress}%</span>
-          </p>
-        </div>
+      <PageHeader
+        title="Company Roadmap"
+        subtitle={`Central strategy engine for founders · Overall progress: ${overallProgress}%`}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            {phases.length === 0 ? (
+              <button
+                onClick={handleImportStrategy}
+                disabled={isImporting}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bee-gradient text-[#111] text-xs font-bold disabled:opacity-50 cursor-pointer shadow-md"
+              >
+                {isImporting ? (
+                  <>Seeding Master Plan...</>
+                ) : (
+                  <>
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Import Master Plan</span>
+                  </>
+                )}
+              </button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => triggerSync()}
+                  className="px-3 py-1.5 border border-white/10 hover:bg-white/5 text-white text-xs font-bold rounded-xl transition-all cursor-pointer"
+                >
+                  Recalculate
+                </button>
+                <button
+                  onClick={async () => {
+                    if (confirm("Are you sure you want to reset all current roadmap data and re-import the strategy plan template? This will delete all customized roadmap edits.")) {
+                      await handleImportStrategy();
+                    }
+                  }}
+                  className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-xs font-bold rounded-xl transition-all cursor-pointer"
+                >
+                  Reset
+                </button>
+              </div>
+            )}
 
-        <div className="flex flex-wrap items-center gap-3">
-          {phases.length === 0 ? (
             <button
-              onClick={handleImportStrategy}
-              disabled={isImporting}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bee-gradient text-[#111] text-xs font-semibold disabled:opacity-50 cursor-pointer shadow-lg animate-bounce"
+              onClick={() => setChatOpen(!chatOpen)}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold cursor-pointer shadow-md transition-all"
             >
-              {isImporting ? (
-                <>Seeding Master Plan...</>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4" />
-                  Import Strategy Master Plan
-                </>
-              )}
+              <Bot className="w-3.5 h-3.5" />
+              <span>AI Copilot</span>
             </button>
-          ) : (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => triggerSync()}
-                className="px-3.5 py-2 border border-white/10 hover:bg-white/5 text-white text-xs font-semibold rounded-xl transition-all cursor-pointer"
-              >
-                Recalculate Progress
-              </button>
-              <button
-                onClick={async () => {
-                  if (confirm("Are you sure you want to reset all current roadmap data and re-import the strategy plan template? This will delete all customized roadmap edits.")) {
-                    await handleImportStrategy();
-                  }
-                }}
-                className="px-3.5 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-xs font-semibold rounded-xl transition-all cursor-pointer"
-              >
-                Reset & Re-Import
-              </button>
-            </div>
-          )}
-
-          <button
-            onClick={() => setChatOpen(!chatOpen)}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold cursor-pointer shadow-lg transition-all"
-          >
-            <Bot className="w-4 h-4" />
-            AI Strategy Copilot
-          </button>
-        </div>
-      </div>
+          </div>
+        }
+      />
 
       {/* Tabs Menu Navigation */}
       <div className="flex gap-2 border-b border-white/05 overflow-x-auto no-scrollbar pb-1.5">

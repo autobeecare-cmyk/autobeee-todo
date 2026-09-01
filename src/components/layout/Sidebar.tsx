@@ -7,13 +7,14 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, CheckSquare, Target, Lightbulb,
   DollarSign, Bot, BarChart3, Settings, ChevronLeft,
-  ChevronRight, Calendar, Handshake, FolderLock, TrendingUp
+  ChevronRight, Calendar, Handshake, FolderLock, TrendingUp, Clock
 } from "lucide-react";
 import { useUIStore } from "@/store/useUIStore";
 import { cn } from "@/lib/utils";
 
 const NAV = [
   { href: "/",          label: "Dashboard",    icon: LayoutDashboard },
+  { href: "/attendance", label: "Attendance",   icon: Clock },
   { href: "/tasks",     label: "Tasks",         icon: CheckSquare },
   { href: "/goals",     label: "Goals",         icon: Target },
   { href: "/roadmap",   label: "Roadmap",       icon: TrendingUp },
@@ -32,9 +33,14 @@ export function Sidebar() {
   const pathname = usePathname();
 
   useEffect(() => {
-    if (typeof window !== "undefined" && window.innerWidth < 768) {
-      setSidebarOpen(false);
-    }
+    const handleResize = () => {
+      if (window.innerWidth < 768) {
+        setSidebarOpen(false);
+      }
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, [setSidebarOpen]);
 
   return (

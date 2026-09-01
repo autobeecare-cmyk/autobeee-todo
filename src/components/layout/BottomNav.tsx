@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, CheckSquare, DollarSign, Bot, BarChart3, Calendar,
-  Handshake, FolderLock, Lightbulb, Settings, Menu, X
+  Handshake, FolderLock, Lightbulb, Settings, Menu, X, Clock
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -18,12 +18,13 @@ const PRIMARY_ITEMS = [
 ];
 
 const OVERFLOW_ITEMS = [
-  { href: "/meetings", label: "Meetings",      icon: Calendar },
-  { href: "/vault",     label: "Vault",         icon: FolderLock },
-  { href: "/ideas",     label: "Ideas Vault",   icon: Lightbulb },
-  { href: "/ai",        label: "AI Assistant",  icon: Bot },
-  { href: "/insights",  label: "Insights",      icon: BarChart3 },
-  { href: "/settings",  label: "Settings",      icon: Settings },
+  { href: "/attendance", label: "Attendance",   icon: Clock },
+  { href: "/meetings",   label: "Meetings",     icon: Calendar },
+  { href: "/vault",      label: "Vault",        icon: FolderLock },
+  { href: "/ideas",      label: "Ideas Vault",  icon: Lightbulb },
+  { href: "/ai",         label: "AI Assistant", icon: Bot },
+  { href: "/insights",   label: "Insights",     icon: BarChart3 },
+  { href: "/settings",   label: "Settings",     icon: Settings },
 ];
 
 export function BottomNav() {

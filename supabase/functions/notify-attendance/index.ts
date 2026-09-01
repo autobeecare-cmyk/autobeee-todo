@@ -34,19 +34,19 @@ serve(async (req) => {
 
     switch (type) {
       case 'check_in': {
-        title = 'Office Check-in'
-        body = `${founderName || 'A team member'} arrived at the office.`
+        title = customTitle || 'Office Check-in'
+        body = customBody || `${founderName || 'A team member'} checked in.`
         // Send to everyone else in the team
         toUsers = customToUsers || ALL_FOUNDERS.filter((f) => f !== founderName)
         priority = 'high'
         break
       }
       case 'check_out': {
-        title = 'Office Check-out'
-        body = `${founderName || 'A team member'} left the office.`
+        title = customTitle || 'Office Check-out'
+        body = customBody || `${founderName || 'A team member'} ended their workday.`
         // Send to everyone else in the team
         toUsers = customToUsers || ALL_FOUNDERS.filter((f) => f !== founderName)
-        priority = 'high'
+        priority = 'normal'
         break
       }
       case 'auto_check_out': {

@@ -348,84 +348,10 @@ export async function checkOutOffice(
   return workday;
 }
 
-// 7:00 PM IST Daily Automatic Checkout
-// Only for people who checked in today and haven't checked out.
-// Users who never checked in remain untouched ("Not checked in").
-export async function processAutoCheckoutServer(overrideDateStr?: string, force = false) {
-  const { dateStr, isAfter7PM } = getISTDateInfo();
-  const targetDate = overrideDateStr || dateStr;
-
-  if (!overrideDateStr && !isAfter7PM && !force) {
-    return { processed: 0, message: "Before 7:00 PM IST — auto-checkout skipped." };
-  }
-
-  // Find all workdays for today that are still in 'working' status and not checked out
-  const { data: activeWorkdays, error: fetchErr } = await supabase
-    .from("workdays")
-    .select("*")
-    .eq("work_date", targetDate)
-    .eq("status", "working")
-    .is("check_out_at", null);
-
-  if (fetchErr || !activeWorkdays || activeWorkdays.length === 0) {
-    return { processed: 0, message: `No active check-ins found for ${targetDate}.` };
-  }
-
-  let count = 0;
-  const nowIso = new Date().toISOString();
-
-  for (const workday of activeWorkdays) {
-    const { data: updated, error: updateErr } = await supabase
-      .from("workdays")
-      .update({
-        check_out_at: nowIso,
-        status: "completed",
-        updated_at: nowIso,
-      })
-      .eq("id", workday.id)
-      .select()
-      .single();
-
-    if (!updateErr && updated) {
-      count++;
-
-      // Log event
-      await supabase.from("workday_events").insert({
-        workday_id: workday.id,
-        founder_name: workday.founder_name,
-        event_type: "check_out",
-        timestamp: nowIso,
-        metadata: { source: "automatic", reason: "7_pm_deadline" },
-      });
-
-      // Log activity
-      await logActivity({
-        type: "updated",
-        entityId: workday.id,
-        entityType: "task",
-        description: `${workday.founder_name} was automatically checked out at 7:00 PM.`,
-      });
-
-      // Send in-app notification (idempotent via eventId)
-      await createNotification({
-        eventId: `workday_autocheckout_${workday.id}`,
-        title: "Automatic Check-out",
-        body: "You were automatically checked out at 7:00 PM.",
-        recipient: workday.founder_name,
-        actor: "System",
-        type: "check_out",
-      });
-
-      // Trigger native push notification
-      await notifyAttendanceChange("auto_check_out", workday.founder_name, workday, {
-        title: "Automatic Check-out",
-        body: "You were automatically checked out at 7:00 PM.",
-        toUsers: [workday.founder_name],
-      });
-    }
-  }
-
-  return { processed: count, message: `Auto-checkout completed for ${count} founders.` };
+// 7:00 PM IST Daily Automatic Checkout - PERMANENTLY DISABLED PER REQUIREMENTS
+// AutoBee OS uses strict MANUAL CHECKOUT ONLY. Founders remain ACTIVE WORKDAY until they manually press "End Workday".
+export async function processAutoCheckoutServer(_overrideDateStr?: string, _force = false) {
+  return { processed: 0, message: "Automatic checkout disabled - manual checkout only." };
 }
 
 // 10:00 AM & 12:00 PM IST Monday-Friday Attendance Reminders
@@ -482,11 +408,11 @@ export async function processAttendanceReminderServer(
   let count = 0;
 
   // Exact titles and bodies per specification
-  const title = effectiveType === '10am' ? "Office Check-in" : "Final Office Check-in Reminder";
+  const title = effectiveType === '10am' ? "Good morning 👋" : "Final check-in reminder";
   const body =
     effectiveType === '10am'
-      ? "You haven't checked in today."
-      : "You haven't checked in today. This is your final reminder.";
+      ? "Don't forget to check in at AutoBee."
+      : "You haven't checked in yet. You can check in while you're within 150m of AutoBee HQ.";
 
   for (const founder of missingFounders) {
     const eventId = `attendance-reminder-${effectiveType}-${founder}-${targetDate}`;

@@ -13,6 +13,9 @@ import { usePartnerStore } from "@/store/usePartnerStore";
 import { cn } from "@/lib/utils";
 import type { Document, Partner } from "@/lib/types";
 import { fadeUp, staggerContainer } from "@/lib/animations";
+import { PageHeader } from "@/components/common/PageHeader";
+import { EmptyState } from "@/components/common/EmptyState";
+import { SectionHeader } from "@/components/common/SectionHeader";
 
 const CATEGORIES = [
   "Legal", "Contracts", "Finance", "Marketing",
@@ -368,53 +371,50 @@ export default function DocumentVaultPage() {
   }, [filteredDocs]);
 
   return (
-    <div className="px-4 py-6 max-w-5xl mx-auto space-y-6">
+    <div className="px-4 py-5 max-w-5xl mx-auto space-y-4">
       {/* Header bar */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground/95 flex items-center gap-2">
-            <FolderLock className="w-6 h-6 text-[#FFC107]" />
-            Secure Document Vault
-          </h1>
-          <p className="text-xs text-muted-foreground mt-0.5">Corporate document attachments, partnership agreements & financials</p>
-        </div>
-        <motion.button
-          whileTap={{ scale: 0.96 }}
-          onClick={() => setUploadOpen(true)}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bee-gradient text-[#111] text-sm font-semibold shadow-md cursor-pointer"
-        >
-          <Plus className="w-4 h-4" strokeWidth={2.5} />
-          Upload Document
-        </motion.button>
-      </div>
+      <PageHeader
+        title="Document Vault"
+        subtitle="Corporate attachments, partnership agreements & financials"
+        actions={
+          <motion.button
+            whileTap={{ scale: 0.96 }}
+            onClick={() => setUploadOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bee-gradient text-[#111] text-xs font-bold shadow-md cursor-pointer"
+          >
+            <Plus className="w-4 h-4" strokeWidth={2.5} />
+            <span>Upload Document</span>
+          </motion.button>
+        }
+      />
 
       {/* Statistics info banner */}
-      <div className="flex items-center gap-4 bg-white/[0.01] border border-white/05 p-3.5 rounded-2xl">
-        <div className="p-2 bg-[#FFC107]/10 text-[#FFC107] rounded-lg">
-          <HardDrive className="w-5 h-5" />
+      <div className="flex items-center gap-3.5 bg-white/[0.02] border border-white/[0.06] p-3.5 rounded-2xl">
+        <div className="p-2 bg-[#FFC107]/10 text-[#FFC107] rounded-xl shrink-0">
+          <HardDrive className="w-4 h-4" />
         </div>
         <div>
-          <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Vault Space Capacity</span>
-          <div className="text-xs font-semibold text-foreground/80 mt-0.5">
+          <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Vault Storage</span>
+          <div className="text-xs font-bold text-foreground/90 mt-0.5">
             {documents.length} secure documents saved · {CATEGORIES.length} folders classification
           </div>
         </div>
       </div>
 
       {/* Filter and search controls */}
-      <div className="flex items-center gap-3 bg-white/[0.01] border border-white/05 px-4 py-3 rounded-2xl flex-wrap">
+      <div className="flex items-center gap-3 bg-white/[0.02] border border-white/[0.06] px-3.5 py-2.5 rounded-2xl flex-wrap">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search vault documents..."
-            className="w-full pl-10 pr-4 py-2 rounded-xl bg-white/[0.03] border border-white/10 text-xs outline-none focus:border-[rgba(255,193,7,0.4)] focus:bg-white/[0.05] transition-all text-foreground"
+            className="w-full pl-9 pr-4 py-1.5 rounded-xl bg-white/[0.03] border border-white/10 text-xs outline-none focus:border-[rgba(255,193,7,0.4)] focus:bg-white/[0.05] transition-all text-foreground"
           />
         </div>
 
         <select
           value={filterCategory} onChange={e => setFilterCategory(e.target.value)}
-          className="px-3 py-2 rounded-xl bg-white/[0.03] border border-white/10 text-xs outline-none text-foreground select-none cursor-pointer hover:bg-white/[0.05]"
+          className="px-3 py-1.5 rounded-xl bg-white/[0.03] border border-white/10 text-xs outline-none text-foreground select-none cursor-pointer hover:bg-white/[0.05]"
         >
           <option value="all">All Categories</option>
           {CATEGORIES.map(c => <option key={c} value={c} className="bg-[#161616]">{c}</option>)}
@@ -424,8 +424,8 @@ export default function DocumentVaultPage() {
       {/* SECTION 1 — Recents/Pinned row */}
       {recentDocs.length > 0 && !search && filterCategory === "all" && (
         <div className="space-y-2.5">
-          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block px-1">Pinned / Recent Documents</span>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <SectionHeader title="Pinned & Recent Documents" subtitle={`${recentDocs.length} latest`} />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {recentDocs.map(doc => (
               <DocumentCard
                 key={doc.id}
@@ -439,13 +439,18 @@ export default function DocumentVaultPage() {
       )}
 
       {/* SECTION 2 — Category Breakdown (Collapsible Grid) */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         {loading ? (
           <div className="p-12 text-center text-muted-foreground text-xs">Loading Secure files list...</div>
         ) : filteredDocs.length === 0 ? (
-          <div className="text-center py-16 text-muted-foreground text-xs border border-dashed border-white/05 rounded-2xl bg-white/[0.01]">
-            No documents match your query or category filters.
-          </div>
+          <EmptyState
+            icon={<FolderLock className="w-6 h-6" />}
+            title="No documents found"
+            description="No documents match your query or category filters."
+            actionText="Clear Filters"
+            onAction={() => { setSearch(""); setFilterCategory("all"); }}
+            className="mt-6"
+          />
         ) : (
           CATEGORIES.map(cat => {
             const list = docsByCategory[cat] || [];
