@@ -80,7 +80,7 @@ export function WorkdayCard({
     try {
       await startBreak();
     } catch (err: any) {
-      setActionError(err.message || "Couldn't start break. Please try again.");
+      setActionError(getFriendlyAttendanceError(err));
     } finally {
       setBreakSubmitting(false);
     }
@@ -92,7 +92,7 @@ export function WorkdayCard({
     try {
       await endBreak();
     } catch (err: any) {
-      setActionError(err.message || "Couldn't resume work. Please try again.");
+      setActionError(getFriendlyAttendanceError(err));
     } finally {
       setBreakSubmitting(false);
     }
@@ -128,6 +128,9 @@ export function WorkdayCard({
     const msg = typeof rawError === "string" ? rawError : rawError?.message || "";
     const lower = msg.toLowerCase();
 
+    if (lower.includes("schema cache") || lower.includes("break_started_at") || lower.includes("total_break_ms")) {
+      return "Database update pending: Please run migration 08_break_support.sql in Supabase SQL Editor.";
+    }
     if (lower.includes("outside") || lower.includes("closer to the office") || lower.includes("office radius") || lower.includes("area")) {
       return "You're outside AutoBee HQ. Move within 150m to check in.";
     }
@@ -140,7 +143,7 @@ export function WorkdayCard({
     if (lower.includes("closed")) {
       return "Check-in is closed for today (past 3:00 PM IST).";
     }
-    return "Couldn't check you in. Please try again.";
+    return msg || "Couldn't complete request. Please try again.";
   }
 
   const handleCheckIn = async () => {

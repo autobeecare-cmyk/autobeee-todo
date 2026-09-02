@@ -147,3 +147,9 @@ EXCEPTION
         RAISE NOTICE 'pg_cron scheduling skipped: %', SQLERRM;
 END;
 $$;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 7. Instantly reload PostgREST schema cache
+-- ─────────────────────────────────────────────────────────────────────────────
+NOTIFY pgrst, 'reload schema';
+
