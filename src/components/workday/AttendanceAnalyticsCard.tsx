@@ -96,15 +96,29 @@ export function AttendanceAnalyticsCard({ onOpenHistory }: { onOpenHistory?: () 
         if (record.checkInAt && record.checkOutAt) {
           const start = new Date(record.checkInAt).getTime();
           const end = new Date(record.checkOutAt).getTime();
-          minutes = Math.max(0, Math.floor((end - start) / 60000));
-        } else if (record.checkInAt && record.status === "working") {
+          // Deduct server-authoritative break time
+          const grossMs = Math.max(0, end - start);
+          const netMs = Math.max(0, grossMs - (record.totalBreakMs ?? 0));
+          minutes = Math.max(0, Math.floor(netMs / 60000));
+        } else if (record.checkInAt && (record.status === "working" || record.status === "on_break")) {
           const start = new Date(record.checkInAt).getTime();
           if (isDayToday) {
-            minutes = Math.max(0, Math.floor((Date.now() - start) / 60000));
+            // Live calculation: gross elapsed minus any accumulated break
+            const autoCloseTime = new Date(`${dateStr}T19:00:00+05:30`).getTime();
+            const effectiveNow = Math.min(Date.now(), autoCloseTime);
+            const grossMs = Math.max(0, effectiveNow - start);
+            // Compute live break (server total + active break if on_break)
+            let liveBreakMs = record.totalBreakMs ?? 0;
+            if (record.status === "on_break" && record.breakStartedAt) {
+              liveBreakMs += Math.max(0, effectiveNow - new Date(record.breakStartedAt).getTime());
+            }
+            minutes = Math.max(0, Math.floor((grossMs - liveBreakMs) / 60000));
           } else {
             const autoCloseTime = new Date(`${dateStr}T19:00:00+05:30`).getTime();
             const effectiveEnd = Math.min(autoCloseTime, start + (10 * 3600000));
-            minutes = Math.max(0, Math.floor((effectiveEnd - start) / 60000));
+            const grossMs = Math.max(0, effectiveEnd - start);
+            const netMs = Math.max(0, grossMs - (record.totalBreakMs ?? 0));
+            minutes = Math.max(0, Math.floor(netMs / 60000));
             checkOutStr = "07:00 PM (Auto)";
           }
         }

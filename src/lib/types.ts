@@ -359,8 +359,8 @@ export interface RoadmapRisk {
 
 // ── Workday & Attendance Types ──
 export type FounderName = "Sourabh" | "Asher" | "Subin";
-export type WorkdayStatus = "working" | "completed" | "leave";
-export type WorkdayEventType = "check_in" | "check_out" | "auto_leave" | "auto_check_out" | "check_in_reminder";
+export type WorkdayStatus = "working" | "completed" | "leave" | "on_break";
+export type WorkdayEventType = "check_in" | "check_out" | "auto_leave" | "auto_check_out" | "check_in_reminder" | "break_start" | "break_end";
 
 export interface Workday {
   id: string;
@@ -378,6 +378,9 @@ export interface Workday {
   checkInLocationTimestamp?: string | null;
   checkInMethod?: string | null;
   checkOutSource?: string | null;
+  // Break state — persisted server-side, authoritative across all devices
+  totalBreakMs: number; // Accumulated completed break duration in milliseconds
+  breakStartedAt?: string | null; // ISO timestamp when current break started; null if not on break
   createdAt: string;
   updatedAt: string;
 }

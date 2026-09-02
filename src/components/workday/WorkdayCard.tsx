@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   MapPin,
@@ -27,11 +27,6 @@ import { WorkdayLiveHeroTimer } from "./WorkdayLiveHeroTimer";
 
 type CheckInStage = "idle" | "locating" | "verifying" | "success";
 
-interface BreakState {
-  isOnBreak: boolean;
-  breakStartTime: number | null;
-  totalBreakMs: number;
-}
 
 export interface WorkdayGreetingInfo {
   title: string;
@@ -48,7 +43,7 @@ export function WorkdayCard({
   greeting?: WorkdayGreetingInfo;
 }) {
   const currentUser = useUIStore((s) => s.currentUser) as FounderName;
-  const { todayWorkdays, checkIn, checkOut, initRealtime } = useWorkdayStore();
+  const { todayWorkdays, checkIn, checkOut, startBreak, endBreak, initRealtime } = useWorkdayStore();
 
   const [checkoutModalOpen, setCheckoutModalOpen] = useState(false);
   const [progressNotes, setProgressNotes] = useState("");
@@ -69,89 +64,64 @@ export function WorkdayCard({
   const myWorkday = todayWorkdays.find((w) => w.founderName === currentUser);
 
   // ──────────────────────────────────────────────
-  // BREAK TRACKING (Stored safely in client per founder & date)
+  // BREAK STATE — Derived entirely from server workday record
+  // All break logic is persisted server-side; no localStorage
   // ──────────────────────────────────────────────
-  const breakStorageKey = `autobee_break_${currentUser}_${dateStr}`;
-  const completedBreakKey = `autobee_break_completed_${currentUser}_${dateStr}`;
 
-  const [breakState, setBreakState] = useState<BreakState>(() => {
-    if (typeof window === "undefined") return { isOnBreak: false, breakStartTime: null, totalBreakMs: 0 };
+  const [breakSubmitting, setBreakSubmitting] = useState(false);
+
+  const isOnBreak = myWorkday?.status === "on_break";
+  const breakStartedAt = myWorkday?.breakStartedAt ?? null;
+  const totalBreakMs = myWorkday?.totalBreakMs ?? 0;
+
+  const handleTakeBreak = async () => {
+    if (isOnBreak || !myWorkday) return;
+    setBreakSubmitting(true);
     try {
-      const saved = localStorage.getItem(breakStorageKey);
-      return saved ? JSON.parse(saved) : { isOnBreak: false, breakStartTime: null, totalBreakMs: 0 };
-    } catch {
-      return { isOnBreak: false, breakStartTime: null, totalBreakMs: 0 };
+      await startBreak();
+    } catch (err: any) {
+      setActionError(err.message || "Couldn't start break. Please try again.");
+    } finally {
+      setBreakSubmitting(false);
     }
-  });
-
-  const saveBreakState = useCallback((state: BreakState) => {
-    setBreakState(state);
-    if (typeof window !== "undefined") {
-      try {
-        localStorage.setItem(breakStorageKey, JSON.stringify(state));
-      } catch (e) {
-        console.error("Failed to save break state:", e);
-      }
-    }
-  }, [breakStorageKey]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const saved = localStorage.getItem(breakStorageKey);
-      setBreakState(saved ? JSON.parse(saved) : { isOnBreak: false, breakStartTime: null, totalBreakMs: 0 });
-    } catch {
-      setBreakState({ isOnBreak: false, breakStartTime: null, totalBreakMs: 0 });
-    }
-  }, [breakStorageKey]);
-
-  const handleTakeBreak = () => {
-    if (breakState.isOnBreak) return;
-    saveBreakState({
-      ...breakState,
-      isOnBreak: true,
-      breakStartTime: Date.now(),
-    });
   };
 
-  const handleResumeWork = () => {
-    if (!breakState.isOnBreak || !breakState.breakStartTime) return;
-    const additionalBreakMs = Math.max(0, Date.now() - breakState.breakStartTime);
-    saveBreakState({
-      isOnBreak: false,
-      breakStartTime: null,
-      totalBreakMs: breakState.totalBreakMs + additionalBreakMs,
-    });
+  const handleResumeWork = async () => {
+    if (!isOnBreak || !myWorkday) return;
+    setBreakSubmitting(true);
+    try {
+      await endBreak();
+    } catch (err: any) {
+      setActionError(err.message || "Couldn't resume work. Please try again.");
+    } finally {
+      setBreakSubmitting(false);
+    }
   };
 
-  // Completed break duration for summary display
-  const completedBreakDurationStr = useMemo(() => {
-    if (typeof window === "undefined") return null;
-    try {
-      const saved = localStorage.getItem(completedBreakKey);
-      if (saved) {
-        const ms = Number(saved);
-        if (!isNaN(ms) && ms > 0) {
-          const totalSecs = Math.floor(ms / 1000);
-          const hours = Math.floor(totalSecs / 3600);
-          const mins = Math.floor((totalSecs % 3600) / 60);
-          return hours > 0 ? `${hours}h ${mins}m break` : `${mins}m break`;
-        }
-      }
-    } catch {}
-    return null;
-  }, [completedBreakKey, myWorkday?.status]);
-
+  // Completed workday duration: checkout - checkin - totalBreakMs (all server values)
   const completedDurationStr = useMemo(() => {
     if (!myWorkday || myWorkday.status !== "completed" || !myWorkday.checkInAt || !myWorkday.checkOutAt) {
       return null;
     }
     const start = new Date(myWorkday.checkInAt).getTime();
     const end = new Date(myWorkday.checkOutAt).getTime();
-    const diffMs = Math.max(0, end - start);
-    const hours = Math.floor(diffMs / (1000 * 60 * 60));
-    const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    const grossMs = Math.max(0, end - start);
+    // Deduct server-authoritative break time
+    const netMs = Math.max(0, grossMs - (myWorkday.totalBreakMs ?? 0));
+    const hours = Math.floor(netMs / (1000 * 60 * 60));
+    const mins = Math.floor((netMs % (1000 * 60 * 60)) / (1000 * 60));
     return `${hours}h ${mins}m worked`;
+  }, [myWorkday]);
+
+  // Completed break duration for summary display (from server totalBreakMs)
+  const completedBreakDurationStr = useMemo(() => {
+    if (!myWorkday || myWorkday.status !== "completed" || !myWorkday.totalBreakMs) return null;
+    const ms = myWorkday.totalBreakMs;
+    if (ms <= 0) return null;
+    const totalSecs = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSecs / 3600);
+    const mins = Math.floor((totalSecs % 3600) / 60);
+    return hours > 0 ? `${hours}h ${mins}m break` : `${mins}m break`;
   }, [myWorkday]);
 
   function getFriendlyAttendanceError(rawError: any): string {
@@ -259,20 +229,6 @@ export function WorkdayCard({
         tomorrow: tomorrowNotes.trim() || undefined,
       });
 
-      // Calculate final total break duration and persist for completed summary
-      let finalBreakMs = breakState.totalBreakMs;
-      if (breakState.isOnBreak && breakState.breakStartTime) {
-        finalBreakMs += Math.max(0, Date.now() - breakState.breakStartTime);
-      }
-
-      if (typeof window !== "undefined") {
-        try {
-          localStorage.removeItem(breakStorageKey);
-          localStorage.setItem(completedBreakKey, String(finalBreakMs));
-        } catch {}
-      }
-      setBreakState({ isOnBreak: false, breakStartTime: null, totalBreakMs: 0 });
-
       setCheckoutModalOpen(false);
       setProgressNotes("");
       setBlockerNotes("");
@@ -306,10 +262,8 @@ export function WorkdayCard({
 
   const cardStatus = !myWorkday
     ? "idle"
-    : myWorkday.status === "working"
-    ? breakState.isOnBreak
-      ? "break"
-      : "working"
+    : myWorkday.status === "on_break"
+    ? "break"
     : myWorkday.status;
 
   return (
@@ -501,9 +455,9 @@ export function WorkdayCard({
               <WorkdayLiveHeroTimer
                 checkInAt={myWorkday.checkInAt}
                 workDate={myWorkday.workDate}
-                isOnBreak={breakState.isOnBreak}
-                breakStartTime={breakState.breakStartTime}
-                storedBreakMs={breakState.totalBreakMs}
+                isOnBreak={isOnBreak}
+                breakStartedAt={breakStartedAt}
+                totalBreakMs={totalBreakMs}
               />
 
               {/* Swipe and Break Controls */}

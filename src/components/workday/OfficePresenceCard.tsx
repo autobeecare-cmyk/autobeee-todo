@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { motion } from "framer-motion";
 import { Building2, CheckCircle2, Coffee } from "lucide-react";
 import { useWorkdayStore } from "@/store/useWorkdayStore";
@@ -36,27 +36,10 @@ export function OfficePresenceCard() {
   const { todayWorkdays, initRealtime } = useWorkdayStore();
   const { dateStr } = getISTDateInfo();
 
-  const [breaks, setBreaks] = useState<Record<string, boolean>>({});
-
   useEffect(() => {
     const unsub = initRealtime();
     return () => unsub();
   }, [initRealtime]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const breakMap: Record<string, boolean> = {};
-    FOUNDERS.forEach((f) => {
-      try {
-        const saved = localStorage.getItem(`autobee_break_${f.name}_${dateStr}`);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (parsed?.isOnBreak) breakMap[f.name] = true;
-        }
-      } catch {}
-    });
-    setBreaks(breakMap);
-  }, [dateStr]);
 
   return (
     <div className="glass-card-premium p-3.5 sm:p-4 rounded-2xl space-y-2.5 shadow-sm">
@@ -82,7 +65,8 @@ export function OfficePresenceCard() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         {FOUNDERS.map(({ name, role, color, border, bg }) => {
           const workday = todayWorkdays.find((w) => w.founderName === name);
-          const isOnBreak = breaks[name];
+          // Break state derived directly from server workday status — no localStorage
+          const isOnBreak = workday?.status === "on_break";
 
           let statusBadge = (
             <div className="flex items-center gap-1 text-[11px] text-muted-foreground/70">
@@ -91,7 +75,7 @@ export function OfficePresenceCard() {
             </div>
           );
 
-          if (workday?.status === "working") {
+          if (workday?.status === "working" || workday?.status === "on_break") {
             const checkInTime = new Date(workday.checkInAt).toLocaleTimeString("en-US", {
               hour: "numeric",
               minute: "2-digit",
@@ -139,10 +123,10 @@ export function OfficePresenceCard() {
               key={name}
               className={cn(
                 "flex items-center justify-between p-2.5 rounded-xl bg-white/[0.02] border transition-all",
-                workday?.status === "working"
-                  ? isOnBreak
-                    ? "border-amber-500/25 bg-amber-500/[0.03]"
-                    : "border-emerald-500/25 bg-emerald-500/[0.03]"
+                workday?.status === "on_break"
+                  ? "border-amber-500/25 bg-amber-500/[0.03]"
+                  : workday?.status === "working"
+                  ? "border-emerald-500/25 bg-emerald-500/[0.03]"
                   : workday?.status === "completed"
                   ? "border-blue-500/20 bg-blue-500/[0.02]"
                   : "border-white/[0.05]"

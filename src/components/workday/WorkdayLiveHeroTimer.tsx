@@ -8,8 +8,9 @@ interface WorkdayLiveHeroTimerProps {
   checkInAt: string;
   workDate: string; // YYYY-MM-DD
   isOnBreak: boolean;
-  breakStartTime: number | null;
-  storedBreakMs: number;
+  // Server-authoritative break fields from the workdays table
+  breakStartedAt: string | null; // ISO timestamp of when break started; null if not on break
+  totalBreakMs: number;          // Accumulated completed break duration (server value)
   className?: string;
 }
 
@@ -17,8 +18,8 @@ export function WorkdayLiveHeroTimer({
   checkInAt,
   workDate,
   isOnBreak,
-  breakStartTime,
-  storedBreakMs,
+  breakStartedAt,
+  totalBreakMs,
   className,
 }: WorkdayLiveHeroTimerProps) {
   // Parse authoritative timestamps in UTC ms
@@ -51,11 +52,13 @@ export function WorkdayLiveHeroTimer({
     const effectiveNow = Math.min(now, sevenPmTimeMs);
     const isPast7Pm = now >= sevenPmTimeMs;
 
-    // Calculate dynamic break elapsed
-    let currentBreakTotal = Math.max(0, storedBreakMs);
+    // Calculate dynamic break elapsed using server-authoritative breakStartedAt
+    let currentBreakTotal = Math.max(0, totalBreakMs);
     let activeBreakElapsed = 0;
-    if (isOnBreak && breakStartTime) {
-      activeBreakElapsed = Math.max(0, effectiveNow - breakStartTime);
+    if (isOnBreak && breakStartedAt) {
+      // Use server timestamp for break start — same on every device
+      const serverBreakStartMs = new Date(breakStartedAt).getTime();
+      activeBreakElapsed = Math.max(0, effectiveNow - serverBreakStartMs);
       currentBreakTotal += activeBreakElapsed;
     }
 
@@ -89,7 +92,7 @@ export function WorkdayLiveHeroTimer({
     tick();
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
-  }, [checkInTimeMs, sevenPmTimeMs, totalWindowMs, isOnBreak, breakStartTime, storedBreakMs]);
+  }, [checkInTimeMs, sevenPmTimeMs, totalWindowMs, isOnBreak, breakStartedAt, totalBreakMs]);
 
   // Format Helpers
   const pad = (n: number) => String(n).padStart(2, "0");

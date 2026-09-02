@@ -20,6 +20,8 @@ interface WorkdayStore {
   fetchWorkdays: () => Promise<void>;
   checkIn: (coords?: { latitude: number; longitude: number; accuracy: number; timestamp?: number | string }) => Promise<void>;
   checkOut: (notes?: { progress?: string; blocker?: string; tomorrow?: string }) => Promise<void>;
+  startBreak: () => Promise<void>;
+  endBreak: () => Promise<void>;
   initRealtime: () => () => void;
 }
 
@@ -69,6 +71,36 @@ export const useWorkdayStore = create<WorkdayStore>((set, get) => ({
     } catch (err: any) {
       console.error("Attendance checkout error:", err);
       set({ error: "Couldn't end your workday. Please try again.", loading: false });
+      throw err;
+    }
+  },
+
+  startBreak: async () => {
+    const currentUser = useUIStore.getState().currentUser as FounderName;
+    set({ error: null });
+    try {
+      const { startBreak: startBreakFn } = await import("@/lib/supabase/workday");
+      await startBreakFn(currentUser);
+      // Fetch immediately so this device updates, and realtime propagates to others
+      await get().fetchWorkdays();
+    } catch (err: any) {
+      console.error("Start break error:", err);
+      set({ error: err.message || "Couldn't start your break. Please try again." });
+      throw err;
+    }
+  },
+
+  endBreak: async () => {
+    const currentUser = useUIStore.getState().currentUser as FounderName;
+    set({ error: null });
+    try {
+      const { endBreak: endBreakFn } = await import("@/lib/supabase/workday");
+      await endBreakFn(currentUser);
+      // Fetch immediately so this device updates, and realtime propagates to others
+      await get().fetchWorkdays();
+    } catch (err: any) {
+      console.error("End break error:", err);
+      set({ error: err.message || "Couldn't resume your workday. Please try again." });
       throw err;
     }
   },

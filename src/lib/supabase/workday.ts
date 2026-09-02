@@ -89,6 +89,9 @@ export function mapWorkdayFromDb(dbItem: any): Workday {
     checkInLocationTimestamp: dbItem.check_in_location_timestamp,
     checkInMethod: dbItem.check_in_method,
     checkOutSource: dbItem.check_out_source || null,
+    // Break state — authoritative server-persisted values
+    totalBreakMs: typeof dbItem.total_break_ms === 'number' ? dbItem.total_break_ms : 0,
+    breakStartedAt: dbItem.break_started_at || null,
     createdAt: dbItem.created_at,
     updatedAt: dbItem.updated_at,
   };
@@ -305,6 +308,150 @@ export async function checkInOffice(
   return workday;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// BREAK SUPPORT — Server-persisted, cross-device authoritative
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Start a break for the given founder.
+ * Updates workdays.status = 'on_break', sets break_started_at, inserts break_start event.
+ * Guard: only works if current status is 'working' (prevents double-break).
+ */
+export async function startBreak(founderName: FounderName): Promise<Workday> {
+  const { dateStr } = getISTDateInfo();
+
+  const { data: existing, error: fetchErr } = await supabase
+    .from("workdays")
+    .select("*")
+    .eq("founder_name", founderName)
+    .eq("work_date", dateStr)
+    .single();
+
+  if (fetchErr || !existing) {
+    throw new Error("No active workday found. Please check in first.");
+  }
+
+  if (existing.status === "on_break") {
+    // Already on break — idempotent, return current state
+    return mapWorkdayFromDb(existing);
+  }
+
+  if (existing.status !== "working") {
+    throw new Error(`Cannot start a break when workday status is '${existing.status}'.`);
+  }
+
+  const nowIso = new Date().toISOString();
+
+  const { data, error } = await supabase
+    .from("workdays")
+    .update({
+      status: "on_break",
+      break_started_at: nowIso,
+      updated_at: nowIso,
+    })
+    .eq("id", existing.id)
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  // Audit trail event
+  await supabase.from("workday_events").insert({
+    workday_id: existing.id,
+    founder_name: founderName,
+    event_type: "break_start",
+    timestamp: nowIso,
+    metadata: { source: "manual" },
+  });
+
+  return mapWorkdayFromDb(data);
+}
+
+/**
+ * End a break for the given founder.
+ * Updates workdays.status = 'working', clears break_started_at, accumulates total_break_ms,
+ * inserts break_end event.
+ * Guard: only works if current status is 'on_break' (prevents phantom resume).
+ */
+export async function endBreak(founderName: FounderName): Promise<Workday> {
+  const { dateStr } = getISTDateInfo();
+
+  const { data: existing, error: fetchErr } = await supabase
+    .from("workdays")
+    .select("*")
+    .eq("founder_name", founderName)
+    .eq("work_date", dateStr)
+    .single();
+
+  if (fetchErr || !existing) {
+    throw new Error("No active workday found.");
+  }
+
+  if (existing.status === "working") {
+    // Already working — idempotent, return current state
+    return mapWorkdayFromDb(existing);
+  }
+
+  if (existing.status !== "on_break") {
+    throw new Error(`Cannot end a break when workday status is '${existing.status}'.`);
+  }
+
+  const nowIso = new Date().toISOString();
+  const nowMs = new Date(nowIso).getTime();
+
+  // Compute elapsed break duration from server-authoritative break_started_at
+  const breakStartMs = existing.break_started_at
+    ? new Date(existing.break_started_at).getTime()
+    : nowMs;
+  const elapsedBreakMs = Math.max(0, nowMs - breakStartMs);
+  const newTotalBreakMs = (existing.total_break_ms || 0) + elapsedBreakMs;
+
+  const { data, error } = await supabase
+    .from("workdays")
+    .update({
+      status: "working",
+      break_started_at: null,
+      total_break_ms: newTotalBreakMs,
+      updated_at: nowIso,
+    })
+    .eq("id", existing.id)
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  // Audit trail event
+  await supabase.from("workday_events").insert({
+    workday_id: existing.id,
+    founder_name: founderName,
+    event_type: "break_end",
+    timestamp: nowIso,
+    metadata: { source: "manual", break_duration_ms: elapsedBreakMs },
+  });
+
+  return mapWorkdayFromDb(data);
+}
+
+/**
+ * Compute the total live break duration in milliseconds from a workday record.
+ * - If currently on_break: totalBreakMs + (now - breakStartedAt)
+ * - Otherwise: totalBreakMs
+ * Capped at 7 PM IST cutoff.
+ */
+export function computeLiveBreakMs(
+  workday: { status: string; totalBreakMs: number; breakStartedAt?: string | null; workDate: string }
+): number {
+  const sevenPmMs = new Date(`${workday.workDate}T19:00:00+05:30`).getTime();
+  const effectiveNow = Math.min(Date.now(), sevenPmMs);
+
+  if (workday.status === "on_break" && workday.breakStartedAt) {
+    const breakStartMs = new Date(workday.breakStartedAt).getTime();
+    const activeMs = Math.max(0, effectiveNow - breakStartMs);
+    return workday.totalBreakMs + activeMs;
+  }
+  return workday.totalBreakMs;
+}
+
 export async function checkOutOffice(
   founderName: FounderName,
   notes?: { progress?: string; blocker?: string; tomorrow?: string }
@@ -397,7 +544,7 @@ export async function processAutoCheckoutServer(overrideDateStr?: string, force 
     .from("workdays")
     .select("*")
     .eq("work_date", targetDate)
-    .eq("status", "working");
+    .in("status", ["working", "on_break"]);
 
   if (fetchErr) {
     console.error("Error querying open workdays for 7 PM checkout:", fetchErr);
@@ -408,12 +555,34 @@ export async function processAutoCheckoutServer(overrideDateStr?: string, force 
   const nowIso = new Date().toISOString();
 
   for (const record of openWorkdays || []) {
+    const breakStartedAt = record.break_started_at;
+    const currentTotalBreakMs = record.total_break_ms || 0;
+    let finalBreakMs = currentTotalBreakMs;
+
+    // If the workday is currently on_break, close the active break first
+    if (record.status === "on_break" && breakStartedAt) {
+      const breakStartMs = new Date(breakStartedAt).getTime();
+      const elapsedMs = Math.max(0, new Date(nowIso).getTime() - breakStartMs);
+      finalBreakMs = currentTotalBreakMs + elapsedMs;
+
+      // Insert break_end event before the auto_check_out
+      await supabase.from("workday_events").insert({
+        workday_id: record.id,
+        founder_name: record.founder_name,
+        event_type: "break_end",
+        timestamp: nowIso,
+        metadata: { source: "auto_7pm", auto_ended_break: true },
+      });
+    }
+
     const { data: updated, error: updateErr } = await supabase
       .from("workdays")
       .update({
         check_out_at: nowIso,
         status: "completed",
         check_out_source: "auto_7pm",
+        total_break_ms: finalBreakMs,
+        break_started_at: null,
         updated_at: nowIso,
       })
       .eq("id", record.id)

@@ -23,12 +23,17 @@ export function AttendanceHistoryModal({ onClose }: { onClose: () => void }) {
         if (w.checkInAt && w.checkOutAt) {
           const start = new Date(w.checkInAt).getTime();
           const end = new Date(w.checkOutAt).getTime();
-          totalMinutes += Math.max(0, Math.floor((end - start) / 60000));
-        } else if (w.checkInAt && w.status === "working") {
+          const grossMs = Math.max(0, end - start);
+          // Deduct server-authoritative break time
+          const netMs = Math.max(0, grossMs - (w.totalBreakMs ?? 0));
+          totalMinutes += Math.max(0, Math.floor(netMs / 60000));
+        } else if (w.checkInAt && (w.status === "working" || w.status === "on_break")) {
           const start = new Date(w.checkInAt).getTime();
           const autoCloseTime = new Date(`${w.workDate}T19:00:00+05:30`).getTime();
           const effectiveEnd = Math.min(autoCloseTime, start + (10 * 3600000));
-          totalMinutes += Math.max(0, Math.floor((effectiveEnd - start) / 60000));
+          const grossMs = Math.max(0, effectiveEnd - start);
+          const netMs = Math.max(0, grossMs - (w.totalBreakMs ?? 0));
+          totalMinutes += Math.max(0, Math.floor(netMs / 60000));
         }
       });
 
@@ -125,10 +130,13 @@ export function AttendanceHistoryModal({ onClose }: { onClose: () => void }) {
 
                 let durationStr = "—";
                 if (w.checkInAt && w.checkOutAt) {
-                  const diff = new Date(w.checkOutAt).getTime() - new Date(w.checkInAt).getTime();
-                  const h = Math.floor(diff / (1000 * 60 * 60));
-                  const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-                  durationStr = `${h}h ${m}m`;
+                  const grossMs = new Date(w.checkOutAt).getTime() - new Date(w.checkInAt).getTime();
+                  const netMs = Math.max(0, grossMs - (w.totalBreakMs ?? 0));
+                  const h = Math.floor(netMs / (1000 * 60 * 60));
+                  const m = Math.floor((netMs % (1000 * 60 * 60)) / (1000 * 60));
+                  durationStr = w.totalBreakMs > 0
+                    ? `${h}h ${m}m (−${Math.floor(w.totalBreakMs / 60000)}m break)`
+                    : `${h}h ${m}m`;
                 }
 
                 return (
