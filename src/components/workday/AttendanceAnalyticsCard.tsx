@@ -99,7 +99,14 @@ export function AttendanceAnalyticsCard({ onOpenHistory }: { onOpenHistory?: () 
           minutes = Math.max(0, Math.floor((end - start) / 60000));
         } else if (record.checkInAt && record.status === "working") {
           const start = new Date(record.checkInAt).getTime();
-          minutes = Math.max(0, Math.floor((Date.now() - start) / 60000));
+          if (isDayToday) {
+            minutes = Math.max(0, Math.floor((Date.now() - start) / 60000));
+          } else {
+            const autoCloseTime = new Date(`${dateStr}T19:00:00+05:30`).getTime();
+            const effectiveEnd = Math.min(autoCloseTime, start + (10 * 3600000));
+            minutes = Math.max(0, Math.floor((effectiveEnd - start) / 60000));
+            checkOutStr = "07:00 PM (Auto)";
+          }
         }
       }
 

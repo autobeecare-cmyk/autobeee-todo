@@ -108,8 +108,9 @@ export async function POST(req: Request) {
       })
     }
 
-    // 7. Create attendance record in database using valid schema columns only
+    // 7. Create attendance record — include all location columns so they're persisted
     const nowIso = new Date().toISOString()
+    const checkInTimestamp = typeof timestamp === 'number' ? new Date(timestamp).toISOString() : (timestamp || nowIso)
 
     const { data: newWorkday, error: insertErr } = await supabase
       .from('workdays')
@@ -118,6 +119,12 @@ export async function POST(req: Request) {
         work_date: dateStr,
         check_in_at: nowIso,
         status: 'working',
+        // Persist validated location data (BUG-5 fix)
+        check_in_latitude: latitude,
+        check_in_longitude: longitude,
+        check_in_accuracy: typeof accuracy === 'number' ? accuracy : null,
+        check_in_location_timestamp: checkInTimestamp,
+        check_in_method: 'location',
       })
       .select()
       .single()
@@ -167,11 +174,11 @@ export async function POST(req: Request) {
       },
     })
 
-    // 9. Log company activity
+    // 9. Log company activity — entityType 'workday' not 'task' (BUG-7 fix)
     await logActivity({
       type: 'created',
       entityId: newWorkday.id,
-      entityType: 'task',
+      entityType: 'workday' as any,
       description: `${founderName} checked in at the office.`,
     })
 

@@ -44,6 +44,34 @@ export function getISTDateInfo(date = new Date()) {
   return { dateStr, hours, minutes, dayOfWeek, isAfter10AM, isAfter12PM, isAfter3PM, isAfter7PM, istDate };
 }
 
+/**
+ * Helper to check if a workday check-in is Late.
+ * Rule: Check-in at or after 12:00 PM Asia/Kolkata is Late; before 12:00 PM is NOT Late.
+ * Asia/Kolkata is UTC+5:30 with no DST.
+ */
+export function isLateCheckIn(
+  w?: { checkInAt?: string | null } | string | Date | null
+): boolean {
+  if (!w) return false;
+  let timeMs: number;
+  if (typeof w === "string") {
+    timeMs = new Date(w).getTime();
+  } else if (w instanceof Date) {
+    timeMs = w.getTime();
+  } else if (w.checkInAt) {
+    timeMs = new Date(w.checkInAt).getTime();
+  } else {
+    return false;
+  }
+
+  if (isNaN(timeMs)) return false;
+  // Shift UTC epoch by +5.5 hours to evaluate in Asia/Kolkata
+  const istDate = new Date(timeMs + 5.5 * 60 * 60 * 1000);
+  const hour = istDate.getUTCHours();
+  return hour >= 12;
+}
+
+
 export function mapWorkdayFromDb(dbItem: any): Workday {
   return {
     id: dbItem.id,
@@ -55,6 +83,12 @@ export function mapWorkdayFromDb(dbItem: any): Workday {
     progressNotes: dbItem.progress_notes,
     blockerNotes: dbItem.blocker_notes,
     tomorrowNotes: dbItem.tomorrow_notes,
+    checkInLatitude: dbItem.check_in_latitude,
+    checkInLongitude: dbItem.check_in_longitude,
+    checkInAccuracy: dbItem.check_in_accuracy,
+    checkInLocationTimestamp: dbItem.check_in_location_timestamp,
+    checkInMethod: dbItem.check_in_method,
+    checkOutSource: dbItem.check_out_source || null,
     createdAt: dbItem.created_at,
     updatedAt: dbItem.updated_at,
   };
@@ -247,11 +281,11 @@ export async function checkInOffice(
     metadata: { source: "location" },
   });
 
-  // Log company activity
+  // Log company activity — correct entityType (BUG-7 fix)
   await logActivity({
     type: "created",
     entityId: workday.id,
-    entityType: "task",
+    entityType: "workday" as any,
     description: `${founderName} checked in at the office.`,
   });
 
@@ -306,6 +340,7 @@ export async function checkOutOffice(
       blocker_notes: notes?.blocker || null,
       tomorrow_notes: notes?.tomorrow || null,
       updated_at: nowIso,
+      check_out_source: "manual", // BUG-6 fix
     })
     .eq("id", existing.id)
     .select()
@@ -324,11 +359,11 @@ export async function checkOutOffice(
     metadata: { source: "manual" },
   });
 
-  // Log company activity
+  // Log company activity — correct entityType (BUG-7 fix)
   await logActivity({
     type: "updated",
     entityId: workday.id,
-    entityType: "task",
+    entityType: "workday" as any,
     description: `${founderName} ended their workday.`,
   });
 
@@ -348,10 +383,89 @@ export async function checkOutOffice(
   return workday;
 }
 
-// 7:00 PM IST Daily Automatic Checkout - PERMANENTLY DISABLED PER REQUIREMENTS
-// AutoBee OS uses strict MANUAL CHECKOUT ONLY. Founders remain ACTIVE WORKDAY until they manually press "End Workday".
-export async function processAutoCheckoutServer(_overrideDateStr?: string, _force = false) {
-  return { processed: 0, message: "Automatic checkout disabled - manual checkout only." };
+// 7:00 PM IST Daily Automatic Checkout
+// Closes any open workdays (status = 'working') at 7:00 PM Asia/Kolkata
+export async function processAutoCheckoutServer(overrideDateStr?: string, force = false) {
+  const { dateStr, isAfter7PM } = getISTDateInfo();
+  const targetDate = overrideDateStr || dateStr;
+
+  if (!overrideDateStr && !force && !isAfter7PM) {
+    return { processed: 0, message: "Before 7:00 PM IST — automatic checkout skipped." };
+  }
+
+  const { data: openWorkdays, error: fetchErr } = await supabase
+    .from("workdays")
+    .select("*")
+    .eq("work_date", targetDate)
+    .eq("status", "working");
+
+  if (fetchErr) {
+    console.error("Error querying open workdays for 7 PM checkout:", fetchErr);
+    throw fetchErr;
+  }
+
+  let count = 0;
+  const nowIso = new Date().toISOString();
+
+  for (const record of openWorkdays || []) {
+    const { data: updated, error: updateErr } = await supabase
+      .from("workdays")
+      .update({
+        check_out_at: nowIso,
+        status: "completed",
+        check_out_source: "auto_7pm",
+        updated_at: nowIso,
+      })
+      .eq("id", record.id)
+      .select()
+      .single();
+
+    if (!updateErr && updated) {
+      count++;
+
+      // 1. Audit trail event
+      await supabase.from("workday_events").insert({
+        workday_id: updated.id,
+        founder_name: updated.founder_name,
+        event_type: "auto_check_out",
+        timestamp: nowIso,
+        metadata: { source: "auto_7pm" },
+      });
+
+      // 2. Log company activity
+      await logActivity({
+        type: "updated",
+        entityId: updated.id,
+        entityType: "workday" as any,
+        description: `${updated.founder_name}'s workday was automatically closed at 7:00 PM.`,
+      });
+
+      // 3. In-app notification (idempotent via eventId)
+      await createNotification({
+        eventId: `workday_autocheckout_${targetDate}_${updated.founder_name}`,
+        title: "Workday Closed",
+        body: `Your workday was automatically closed at 7:00 PM IST.`,
+        recipient: updated.founder_name as FounderName,
+        actor: "System",
+        type: "auto_check_out",
+      });
+
+      // 4. Dispatch FCM push notification
+      await notifyAttendanceChange("auto_check_out", updated.founder_name, updated, {
+        title: "Workday Closed (7:00 PM)",
+        body: "Your office workday has been automatically closed.",
+        toUsers: [updated.founder_name],
+      });
+    } else if (updateErr) {
+      console.error(`Failed to auto-checkout ${record.founder_name}:`, updateErr);
+    }
+  }
+
+  return {
+    processed: count,
+    targetDate,
+    message: `7:00 PM auto-checkout completed for ${count} open workday(s).`,
+  };
 }
 
 // 10:00 AM & 12:00 PM IST Monday-Friday Attendance Reminders
@@ -424,7 +538,7 @@ export async function processAttendanceReminderServer(
       body,
       recipient: founder,
       actor: "System",
-      type: "check_in",
+      type: "check_in_reminder", // BUG-4 fix: was incorrectly 'check_in'
     });
 
     if (notif) {
@@ -475,6 +589,7 @@ export async function processAutoLeaveServer(overrideDateStr?: string) {
           work_date: targetDate,
           check_in_at: nowIso,
           status: "leave",
+          check_out_source: "auto_leave", // BUG-6 fix
         })
         .select()
         .single();
@@ -489,11 +604,11 @@ export async function processAutoLeaveServer(overrideDateStr?: string) {
           timestamp: nowIso,
         });
 
-        // Log activity
+        // Log activity — correct entityType (BUG-7 fix)
         await logActivity({
           type: "created",
           entityId: data.id,
-          entityType: "task",
+          entityType: "workday" as any,
           description: `${founder} was marked Leave (no check-in by 3:00 PM).`,
         });
 

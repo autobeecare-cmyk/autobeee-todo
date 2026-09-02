@@ -181,7 +181,7 @@ export default function AIPage() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-56px-64px)] md:h-[calc(100vh-56px)] max-w-3xl mx-auto px-4">
+    <div className="flex flex-col h-[calc(100vh-56px-64px)] md:h-[calc(100vh-56px)] max-w-[1200px] w-full mx-auto px-4 sm:px-6 lg:px-8">
       {/* Header */}
       <div className="flex items-center justify-between py-4 border-b border-white/[0.06]">
         <div className="flex items-center gap-3">
@@ -211,7 +211,7 @@ export default function AIPage() {
             <h2 className="font-bold text-base mb-1 text-foreground">Startup Operations Assistant</h2>
             <p className="text-xs text-muted-foreground max-w-sm mx-auto">Ask me anything about AutoBee. I have live context on tasks, active goals, and recent team expenses.</p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-w-md mx-auto w-full">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 max-w-3xl mx-auto w-full">
             {QUICK_PROMPTS.map(prompt => (
               <motion.button
                 key={prompt}

@@ -669,7 +669,7 @@ export default function MeetingsPage() {
       initial="hidden"
       animate="show"
       variants={staggerContainer}
-      className="px-4 py-5 max-w-5xl mx-auto space-y-4"
+      className="px-4 sm:px-6 lg:px-8 py-5 sm:py-6 max-w-[1560px] w-full mx-auto space-y-5"
     >
       {/* Header */}
       <PageHeader
@@ -690,8 +690,8 @@ export default function MeetingsPage() {
 
       {/* Content */}
       {loading ? (
-        <div className="space-y-3">
-          {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-28 w-full rounded-2xl" />)}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5 sm:gap-4">
+          {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-28 w-full rounded-2xl" />)}
         </div>
       ) : (
         <div className="space-y-6">
@@ -708,7 +708,7 @@ export default function MeetingsPage() {
                 className="mt-4"
               />
             ) : (
-              <motion.div variants={staggerContainer} initial="hidden" animate="show" className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <motion.div variants={staggerContainer} initial="hidden" animate="show" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-3.5 sm:gap-4">
                 {upcomingMeetings.map(m => (
                   <MeetingCard key={m.id} meeting={m} onEdit={setEditingMeeting} tasks={tasks} />
                 ))}
@@ -736,7 +736,7 @@ export default function MeetingsPage() {
                     transition={{ duration: 0.2 }}
                     className="overflow-hidden mt-3"
                   >
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pb-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-3.5 sm:gap-4 pb-4">
                       {pastMeetings.map(m => (
                         <MeetingCard key={m.id} meeting={m} onEdit={setEditingMeeting} tasks={tasks} />
                       ))}

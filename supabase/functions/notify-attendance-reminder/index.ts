@@ -120,7 +120,7 @@ serve(async (req) => {
         body,
         recipient: founder,
         actor: 'System',
-        type: 'check_in',
+        type: 'check_in_reminder',
         read: false,
       }),
     })

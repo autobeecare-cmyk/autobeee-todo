@@ -771,7 +771,7 @@ Answer the user's question clearly and concisely. Focus on blockers, delayed ite
   return (
     <motion.div
       initial="hidden" animate="show" variants={staggerContainer}
-      className="px-4 py-5 max-w-6xl mx-auto space-y-4 relative"
+      className="px-4 sm:px-6 lg:px-8 py-5 sm:py-6 max-w-[1720px] w-full mx-auto space-y-5 relative"
     >
       {/* Top Banner & Strategy Import controls */}
       <PageHeader

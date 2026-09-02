@@ -84,10 +84,10 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="px-4 py-5 max-w-2xl mx-auto space-y-5">
+    <div className="px-4 sm:px-6 lg:px-8 py-5 sm:py-6 max-w-[1400px] w-full mx-auto space-y-6">
       <PageHeader
         title="Settings"
-        subtitle="AutoBee OS · Internal workspace configurations"
+        subtitle="AutoBee OS · Internal workspace configurations & diagnostics"
       />
 
       {/* App info banner */}
@@ -99,130 +99,138 @@ export default function SettingsPage() {
         </div>
         <div>
           <p className="font-bold text-sm text-foreground">AutoBee OS</p>
-          <p className="text-xs text-muted-foreground">Internal startup workspace · v1.0.0</p>
+          <p className="text-xs text-muted-foreground">Internal startup workspace · Production Hardened · v1.0.0</p>
         </div>
       </div>
 
-      <Section title="Appearance">
-        <Row
-          icon={theme === "dark" ? Moon : Sun}
-          label="Theme"
-          desc={theme === "dark" ? "Dark mode" : "Light mode"}
-          action={() => setTheme(theme === "dark" ? "light" : "dark")}
-          right={
-            <div
-              className={cn(
-                "w-10 h-5.5 rounded-full transition-colors relative flex-shrink-0",
-                theme === "light" ? "bg-[#FFC107]" : "bg-white/10"
-              )}
-              style={{ height: "22px" }}
-            >
-              <div
-                className="absolute top-0.5 w-4.5 h-4.5 bg-white rounded-full shadow transition-transform"
-                style={{
-                  width: "18px", height: "18px",
-                  transform: theme === "light" ? "translateX(22px)" : "translateX(2px)"
-                }}
-              />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        {/* Left Column: Identity, Appearance & Notifications */}
+        <div className="space-y-6">
+          <Section title="Workspace Identity">
+            <div className="px-5 py-4 space-y-3">
+              <p className="text-xs text-muted-foreground">Select who is using this device to route notifications and log tasks correctly.</p>
+              <div className="grid grid-cols-3 gap-2">
+                {(["Sourabh", "Asher", "Subin"] as const).map((user) => {
+                  const active = currentUser === user;
+                  return (
+                    <button
+                      key={user}
+                      onClick={() => setCurrentUser(user)}
+                      className={cn(
+                        "py-2 rounded-xl border text-xs font-semibold transition-all cursor-pointer text-center",
+                        active
+                          ? "bg-[#FFC107] border-[#FFC107] text-[#111] shadow-[0_0_12px_rgba(255,193,7,0.15)]"
+                          : "bg-white/03 border-white/05 text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                      )}
+                    >
+                      {user}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          }
-        />
-      </Section>
+          </Section>
 
-      <Section title="Workspace Identity">
-        <div className="px-5 py-4 space-y-3">
-          <p className="text-xs text-muted-foreground">Select who is using this device to route notifications and log tasks correctly.</p>
-          <div className="grid grid-cols-3 gap-2">
-            {(["Sourabh", "Asher", "Subin"] as const).map((user) => {
-              const active = currentUser === user;
-              return (
-                <button
-                  key={user}
-                  onClick={() => setCurrentUser(user)}
+          <Section title="Appearance">
+            <Row
+              icon={theme === "dark" ? Moon : Sun}
+              label="Theme"
+              desc={theme === "dark" ? "Dark mode" : "Light mode"}
+              action={() => setTheme(theme === "dark" ? "light" : "dark")}
+              right={
+                <div
                   className={cn(
-                    "py-2 rounded-xl border text-xs font-semibold transition-all cursor-pointer text-center",
-                    active
-                      ? "bg-[#FFC107] border-[#FFC107] text-[#111] shadow-[0_0_12px_rgba(255,193,7,0.15)]"
-                      : "bg-white/03 border-white/05 text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                    "w-10 h-5.5 rounded-full transition-colors relative flex-shrink-0",
+                    theme === "light" ? "bg-[#FFC107]" : "bg-white/10"
                   )}
+                  style={{ height: "22px" }}
                 >
-                  {user}
-                </button>
-              );
-            })}
-          </div>
+                  <div
+                    className="absolute top-0.5 w-4.5 h-4.5 bg-white rounded-full shadow transition-transform"
+                    style={{
+                      width: "18px", height: "18px",
+                      transform: theme === "light" ? "translateX(22px)" : "translateX(2px)"
+                    }}
+                  />
+                </div>
+              }
+            />
+          </Section>
+
+          <Section title="Notifications">
+            <Row
+              icon={Bell}
+              label="Push Notifications"
+              desc="Task reminders & meeting alerts"
+              right={<NotificationToggle />}
+            />
+            <PushDiagnostics />
+            <div className="px-5 py-3.5 bg-white/[0.01] text-[11px] text-muted-foreground border-t border-white/05 flex flex-col gap-1">
+              <p>⚠️ iOS: To receive notifications, you must first add this app to your Home Screen.</p>
+              <p>🔒 Testing: Notifications require a secure (HTTPS) context.</p>
+            </div>
+          </Section>
         </div>
-      </Section>
 
-      <Section title="Notifications">
-        <Row
-          icon={Bell}
-          label="Push Notifications"
-          desc="Task reminders & meeting alerts"
-          right={<NotificationToggle />}
-        />
-        <PushDiagnostics />
-        <div className="px-5 py-3.5 bg-white/[0.01] text-[11px] text-muted-foreground border-t border-white/05 flex flex-col gap-1">
-          <p>⚠️ iOS: To receive notifications, you must first add this app to your Home Screen.</p>
-          <p>🔒 Testing: Notifications require a secure (HTTPS) context.</p>
+        {/* Right Column: Data, Shortcuts & System */}
+        <div className="space-y-6">
+          <Section title="Data Management">
+            <Row
+              icon={Download}
+              label="Export Backup"
+              desc={`${tasks.length} tasks · ${expenses.length} expenses · ${goals.length} goals · ${ideas.length} ideas`}
+              action={exportData}
+              right={
+                exported ? (
+                  <span className="text-xs text-green-400 font-medium">Downloaded!</span>
+                ) : undefined
+              }
+            />
+            <Row
+              icon={Shield}
+              label="Data Storage"
+              desc="Supabase PostgreSQL + Firebase Push Cloud"
+            />
+          </Section>
+
+          <Section title="Keyboard Shortcuts">
+            {SHORTCUTS.map(({ key, label }) => (
+              <Row
+                key={key}
+                icon={Keyboard}
+                label={label}
+                right={
+                  <kbd className="text-[11px] px-2 py-1 rounded-lg bg-white/08 font-mono text-muted-foreground">{key}</kbd>
+                }
+              />
+            ))}
+          </Section>
+
+          <Section title="PWA / Mobile">
+            <Row
+              icon={Smartphone}
+              label="Install as App"
+              desc="Add Autobee OS to your home screen for the best experience"
+              action={() => {
+                const event = (window as unknown as { deferredPrompt?: { prompt: () => void } }).deferredPrompt;
+                if (event) {
+                  event.prompt();
+                } else {
+                  alert("Use your browser's 'Add to Home Screen' option to install the app.");
+                }
+              }}
+            />
+          </Section>
+
+          <Section title="About">
+            <Row
+              icon={Info}
+              label="Built for Autobee"
+              desc="autobee.care · 3-person startup team"
+            />
+          </Section>
         </div>
-      </Section>
-
-      <Section title="Data">
-        <Row
-          icon={Download}
-          label="Export Backup"
-          desc={`${tasks.length} tasks · ${expenses.length} expenses · ${goals.length} goals · ${ideas.length} ideas`}
-          action={exportData}
-          right={
-            exported ? (
-              <span className="text-xs text-green-400 font-medium">Downloaded!</span>
-            ) : undefined
-          }
-        />
-        <Row
-          icon={Shield}
-          label="Data Storage"
-          desc="Firebase Firestore · sourabhzssc project"
-        />
-      </Section>
-
-      <Section title="Keyboard Shortcuts">
-        {SHORTCUTS.map(({ key, label }) => (
-          <Row
-            key={key}
-            icon={Keyboard}
-            label={label}
-            right={
-              <kbd className="text-[11px] px-2 py-1 rounded-lg bg-white/08 font-mono text-muted-foreground">{key}</kbd>
-            }
-          />
-        ))}
-      </Section>
-
-      <Section title="PWA / Mobile">
-        <Row
-          icon={Smartphone}
-          label="Install as App"
-          desc="Add Autobee OS to your home screen for the best experience"
-          action={() => {
-            const event = (window as unknown as { deferredPrompt?: { prompt: () => void } }).deferredPrompt;
-            if (event) {
-              event.prompt();
-            } else {
-              alert("Use your browser's 'Add to Home Screen' option to install the app.");
-            }
-          }}
-        />
-      </Section>
-
-      <Section title="About">
-        <Row
-          icon={Info}
-          label="Built for Autobee"
-          desc="autobee.care · 3-person startup team"
-        />
-      </Section>
+      </div>
     </div>
   );
 }

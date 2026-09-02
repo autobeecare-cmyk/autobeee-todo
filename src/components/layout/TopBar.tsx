@@ -17,30 +17,49 @@ export function TopBar() {
   const currentFounder = FOUNDER_INFO[currentUser] || FOUNDER_INFO.Sourabh;
 
   return (
-    <header
-      className="fixed top-0 right-0 left-0 md:left-auto h-14 z-30 flex items-center px-4 gap-3"
-      style={{
-        background: "rgba(13,13,13,0.92)",
-        backdropFilter: "blur(16px)",
-        borderBottom: "1px solid rgba(255,255,255,0.06)",
-      }}
-    >
-      {/* Mobile: Autobee logo + menu */}
-      <div className="md:hidden flex items-center gap-2 flex-1">
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="p-1.5 rounded-xl hover:bg-white/5 text-muted-foreground transition-colors cursor-pointer"
-          aria-label="Toggle menu"
-        >
-          <Menu className="w-5 h-5" />
-        </button>
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-lg flex items-center justify-center overflow-hidden bg-white/5 border border-white/10">
-            <img src="/logo.png" alt="Autobee Logo" className="w-full h-full object-contain" />
+    <>
+      <style>{`
+        @media (min-width: 768px) {
+          .topbar-desktop {
+            left: ${sidebarOpen ? '220px' : '64px'} !important;
+          }
+        }
+      `}</style>
+      <header
+        className="fixed top-0 right-0 left-0 h-14 z-30 flex items-center px-4 sm:px-6 gap-3 transition-[left] duration-300 topbar-desktop"
+        style={{
+          background: "rgba(13,13,13,0.88)",
+          backdropFilter: "blur(16px)",
+          WebkitBackdropFilter: "blur(16px)",
+          borderBottom: "1px solid rgba(255,255,255,0.06)",
+        }}
+      >
+        {/* Mobile: Autobee logo + menu */}
+        <div className="md:hidden flex items-center gap-2 flex-1">
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="p-1.5 rounded-xl hover:bg-white/5 text-muted-foreground transition-colors cursor-pointer"
+            aria-label="Toggle menu"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-lg flex items-center justify-center overflow-hidden bg-white/5 border border-white/10">
+              <img src="/logo.png" alt="Autobee Logo" className="w-full h-full object-contain" />
+            </div>
+            <span className="font-bold text-sm tracking-tight text-foreground">AutoBee</span>
           </div>
-          <span className="font-bold text-sm tracking-tight text-foreground">AutoBee</span>
         </div>
-      </div>
+
+        {/* Desktop breadcrumb context */}
+        <div className="hidden md:flex items-center gap-2.5 flex-1">
+          <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-white/[0.025] border border-white/[0.06]">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#FFC107] animate-pulse" />
+            <span className="text-xs font-semibold tracking-tight text-foreground/90">AutoBee OS</span>
+            <span className="text-muted-foreground/40 text-[10px]">/</span>
+            <span className="text-muted-foreground text-xs font-medium">Headquarters</span>
+          </div>
+        </div>
 
       <div className="flex items-center gap-2.5 ml-auto">
         {/* Founder Selector with Avatar */}
@@ -84,6 +103,7 @@ export function TopBar() {
         </motion.button>
       </div>
     </header>
+    </>
   );
 }
 

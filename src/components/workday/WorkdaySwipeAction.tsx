@@ -32,7 +32,7 @@ export function WorkdaySwipeAction({
   onEndWorkday,
 }: WorkdaySwipeActionProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [trackWidth, setTrackWidth] = useState(300);
+  const [trackWidth, setTrackWidth] = useState(320);
 
   useEffect(() => {
     const updateWidth = () => {
@@ -54,17 +54,17 @@ export function WorkdaySwipeAction({
   const checkInPointerOrigin = useRef<{ x: number; y: number; id: number } | null>(null);
   const checkInGestureLocked = useRef(false);
 
-  const handleWidth = 42; // compact handle width
-  const maxCheckInDrag = Math.max(70, trackWidth - handleWidth - 6);
+  const handleWidth = 44;
+  const maxCheckInDrag = Math.max(80, trackWidth - handleWidth - 8);
   const checkInThreshold = maxCheckInDrag * 0.65;
   const checkInProgress = Math.min(1, Math.max(0, checkInDragX / (maxCheckInDrag || 1)));
 
   const getCheckInLabel = () => {
-    if (submitting) return "Verifying HQ...";
+    if (submitting) return "Verifying HQ (150m)...";
     if (isCheckInSuccess) return "Checked In ✓";
-    if (checkInProgress >= 0.65) return "Release to check in";
-    if (checkInProgress >= 0.35) return "Almost there...";
-    return "SWIPE TO CHECK IN";
+    if (checkInProgress >= 0.65) return "Release to Check In";
+    if (checkInProgress >= 0.3) return "Keep dragging...";
+    return "SWIPE TO START WORKDAY";
   };
 
   const handleCheckInPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -95,6 +95,7 @@ export function WorkdaySwipeAction({
       }
     }
 
+    // Apply gentle resistance curve
     const rawX = Math.max(0, deltaX);
     const clampedX = Math.min(maxCheckInDrag, rawX);
     setCheckInDragX(clampedX);
@@ -127,14 +128,14 @@ export function WorkdaySwipeAction({
   }, [submitting]);
 
   // ─────────────────────────────────────────────────────────────
-  // 2. SWIPE LEFT TO END WORKDAY (WORKING STATE)
+  // 2. SWIPE TO END WORKDAY (WORKING STATE)
   // ─────────────────────────────────────────────────────────────
   const [endDragX, setEndDragX] = useState(0);
   const [isEndDragging, setIsEndDragging] = useState(false);
   const endPointerOrigin = useRef<{ x: number; y: number; id: number } | null>(null);
   const endGestureLocked = useRef(false);
 
-  const maxEndDrag = Math.max(60, (trackWidth / 2) - handleWidth);
+  const maxEndDrag = Math.max(70, trackWidth * 0.5 - handleWidth);
   const endThreshold = maxEndDrag * 0.65;
   const endProgress = Math.min(1, Math.max(0, Math.abs(endDragX) / (maxEndDrag || 1)));
 
@@ -166,6 +167,7 @@ export function WorkdaySwipeAction({
       }
     }
 
+    // Drag left toward negative X
     const rawX = Math.min(0, deltaX);
     const clampedX = Math.max(-maxEndDrag, rawX);
     setEndDragX(clampedX);
@@ -196,7 +198,7 @@ export function WorkdaySwipeAction({
   if (status === "idle") {
     if (isAfter3PM) {
       return (
-        <div className="w-full py-2 px-3 rounded-xl bg-white/[0.03] border border-white/[0.06] text-center">
+        <div className="w-full py-3 px-4 rounded-xl bg-white/[0.03] border border-white/[0.06] text-center">
           <p className="text-xs text-muted-foreground font-medium">
             Attendance closed for today (past 3:00 PM IST).
           </p>
@@ -205,35 +207,39 @@ export function WorkdaySwipeAction({
     }
 
     return (
-      <div className="space-y-1.5 select-none">
-        {/* Compact Gesture Track */}
+      <div className="space-y-2 select-none">
+        {/* Interactive Swipe Track */}
         <div
           ref={containerRef}
           onPointerDown={handleCheckInPointerDown}
           onPointerMove={handleCheckInPointerMove}
           onPointerUp={handleCheckInPointerUp}
           onPointerCancel={handleCheckInPointerUp}
-          className="relative h-12 rounded-xl swipe-track-idle overflow-hidden flex items-center px-1 touch-pan-y backdrop-blur-md cursor-pointer border border-white/10"
+          className="relative h-13 rounded-xl overflow-hidden flex items-center px-1.5 touch-pan-y backdrop-blur-xl cursor-pointer border border-white/10 shadow-lg"
+          style={{
+            background:
+              "linear-gradient(135deg, rgba(255, 193, 7, 0.08) 0%, rgba(20, 20, 20, 0.6) 100%)",
+          }}
         >
-          {/* Progress fill */}
+          {/* Dynamic Progress Fill with Gold Gradient */}
           <div
-            className="absolute left-0 top-0 bottom-0 bg-gradient-to-r from-[#FFC107]/20 via-[#FFC107]/35 to-[#FFC107]/50 transition-[width] duration-75 ease-out rounded-xl"
+            className="absolute left-0 top-0 bottom-0 bg-gradient-to-r from-[#FFC107]/20 via-[#FFC107]/35 to-[#FFC107]/55 transition-[width] duration-75 ease-out rounded-xl"
             style={{ width: `${checkInDragX + handleWidth}px` }}
           />
 
           {/* Centered Guide Label */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none px-10">
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none px-12">
             <div
               className={cn(
-                "flex items-center gap-1 text-[11px] font-extrabold tracking-wider transition-colors duration-150 uppercase",
+                "flex items-center gap-1.5 text-[11px] font-black tracking-wider uppercase transition-colors duration-150",
                 checkInProgress >= 0.65
-                  ? "text-emerald-400 font-black"
-                  : "text-[#FFC107]/80"
+                  ? "text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]"
+                  : "text-[#FFC107]/90"
               )}
             >
               <span>{getCheckInLabel()}</span>
               {checkInProgress < 0.65 && !submitting && (
-                <ChevronRight className="w-3.5 h-3.5 text-[#FFC107] animate-pulse -mr-1" />
+                <ChevronRight className="w-4 h-4 text-[#FFC107] animate-pulse -mr-1" />
               )}
             </div>
           </div>
@@ -242,37 +248,39 @@ export function WorkdaySwipeAction({
           <div
             style={{
               transform: `translateX(${checkInDragX}px)`,
-              transition: isCheckInDragging ? "none" : "transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)",
+              transition: isCheckInDragging
+                ? "none"
+                : "transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)",
             }}
             className={cn(
-              "relative z-10 w-9.5 h-9.5 rounded-lg flex items-center justify-center shadow-md cursor-grab active:cursor-grabbing transition-colors",
+              "relative z-10 w-10 h-10 rounded-lg flex items-center justify-center shadow-md cursor-grab active:cursor-grabbing transition-all",
               isCheckInSuccess || checkInProgress >= 0.65
-                ? "bg-emerald-400 text-black shadow-[0_0_15px_rgba(52,211,153,0.6)]"
-                : "bee-gradient text-[#111] shadow-[0_0_12px_rgba(255,193,7,0.4)]"
+                ? "bg-emerald-400 text-black shadow-[0_0_16px_rgba(52,211,153,0.6)]"
+                : "bee-gradient text-[#111] shadow-[0_0_12px_rgba(255,193,7,0.4)] hover:scale-105"
             )}
           >
             {submitting ? (
-              <div className="w-3.5 h-3.5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+              <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
             ) : isCheckInSuccess ? (
-              <CheckCircle2 className="w-4 h-4 text-black" />
+              <CheckCircle2 className="w-4.5 h-4.5 text-black" />
             ) : (
-              <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+              <ArrowRight className="w-4.5 h-4.5 stroke-[2.5]" />
             )}
           </div>
         </div>
 
-        {/* Small hint + Accessible fallback */}
-        <div className="flex items-center justify-between px-0.5 text-[10px] text-muted-foreground">
-          <span className="text-muted-foreground/60 flex items-center gap-1">
+        {/* Small hint + Accessible fallback button */}
+        <div className="flex items-center justify-between px-1 text-[11px] text-muted-foreground">
+          <span className="text-muted-foreground/60 flex items-center gap-1 text-[10px]">
             <span className="w-1.5 h-1.5 rounded-full bg-[#FFC107]" />
-            Drag handle right to check in
+            Swipe handle right or tap to check in
           </span>
 
           <button
             type="button"
             onClick={onCheckIn}
             disabled={submitting}
-            className="px-2 py-0.5 rounded-md bg-white/[0.04] hover:bg-[#FFC107]/15 border border-white/10 hover:border-[#FFC107]/30 text-[#FFC107] font-semibold text-[10px] transition-all cursor-pointer disabled:opacity-50"
+            className="px-2.5 py-1 rounded-lg bg-white/[0.04] hover:bg-[#FFC107]/15 border border-white/10 hover:border-[#FFC107]/30 text-[#FFC107] font-bold text-[10px] transition-all cursor-pointer disabled:opacity-50"
             aria-label="Check in to AutoBee"
           >
             {submitting ? "Checking in..." : "Check In"}
@@ -287,29 +295,43 @@ export function WorkdaySwipeAction({
   // ─────────────────────────────────────────────────────────────
   if (status === "break") {
     return (
-      <div className="space-y-1.5 select-none">
-        <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-2.5 shadow-inner">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
-              <Coffee className="w-3.5 h-3.5 animate-pulse" />
+      <div className="space-y-2 select-none">
+        <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-3 shadow-inner">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shadow-sm">
+              <Coffee className="w-4 h-4 animate-pulse" />
             </div>
             <div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
-                <span className="text-[11px] font-bold text-amber-300 uppercase">On Break</span>
+                <span className="text-xs font-black text-amber-300 uppercase tracking-tight">
+                  On Break
+                </span>
               </div>
-              <p className="text-[10px] text-muted-foreground">Timer paused</p>
+              <p className="text-[10px] text-muted-foreground">
+                Work timer is safely paused
+              </p>
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={onResumeWork}
-            className="px-3.5 py-1.5 rounded-lg bee-gradient text-[#111] font-bold text-xs flex items-center gap-1 shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
-          >
-            <Play className="w-3 h-3 fill-current" />
-            <span>Resume</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onEndWorkday}
+              className="px-2.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-red-500/15 border border-white/10 hover:border-red-500/30 text-muted-foreground hover:text-red-400 text-xs font-semibold transition-all cursor-pointer"
+            >
+              End Day
+            </button>
+
+            <button
+              type="button"
+              onClick={onResumeWork}
+              className="px-4 py-1.5 rounded-xl bee-gradient text-[#111] font-bold text-xs flex items-center gap-1.5 shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
+            >
+              <Play className="w-3.5 h-3.5 fill-current" />
+              <span>Resume Work</span>
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -320,13 +342,17 @@ export function WorkdaySwipeAction({
   // ─────────────────────────────────────────────────────────────
   if (status === "working") {
     return (
-      <div className="space-y-1.5 select-none">
-        {/* Dual-Action Gesture Track (48px height) */}
+      <div className="space-y-2 select-none">
+        {/* Dual-Action Console Track */}
         <div
           ref={containerRef}
-          className="relative h-12 rounded-xl swipe-track-active overflow-hidden flex items-center justify-between px-2 touch-pan-y backdrop-blur-md border border-white/10"
+          className="relative h-13 rounded-xl overflow-hidden flex items-center justify-between px-2 touch-pan-y backdrop-blur-xl border border-white/10 shadow-lg"
+          style={{
+            background:
+              "linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(20, 20, 20, 0.6) 100%)",
+          }}
         >
-          {/* Left: End Day Drag Area */}
+          {/* Left: Interactive Swipe-Left to End Day */}
           <div
             onPointerDown={handleEndPointerDown}
             onPointerMove={handleEndPointerMove}
@@ -335,64 +361,55 @@ export function WorkdaySwipeAction({
             className="relative flex-1 h-full flex items-center justify-start pl-1 pr-2 cursor-grab active:cursor-grabbing group"
           >
             <div
-              className="absolute right-0 top-0 bottom-0 bg-red-500/20 rounded-lg transition-[width] duration-75"
+              className="absolute right-0 top-0 bottom-0 bg-red-500/25 rounded-lg transition-[width] duration-75"
               style={{ width: `${Math.abs(endDragX)}px` }}
             />
 
-            <div className="flex items-center gap-1 z-10 pointer-events-none">
+            <div className="flex items-center gap-1.5 z-10 pointer-events-none">
               <div
                 style={{
                   transform: `translateX(${endDragX}px)`,
-                  transition: isEndDragging ? "none" : "transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)",
+                  transition: isEndDragging
+                    ? "none"
+                    : "transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)",
                 }}
                 className={cn(
-                  "w-7.5 h-7.5 rounded-lg bg-red-500/20 border border-red-500/40 flex items-center justify-center text-red-400 shadow-sm",
-                  endProgress >= 0.65 && "bg-red-500 text-white"
+                  "w-8.5 h-8.5 rounded-lg bg-red-500/20 border border-red-500/40 flex items-center justify-center text-red-400 shadow-sm transition-colors",
+                  endProgress >= 0.65 && "bg-red-500 text-white shadow-[0_0_12px_rgba(239,68,68,0.6)]"
                 )}
               >
-                <ChevronLeft className="w-3.5 h-3.5" />
+                <ChevronLeft className="w-4 h-4 stroke-[2.5]" />
               </div>
-              <span className="text-[10px] font-bold text-red-400/90 uppercase tracking-tight truncate">
-                {endProgress >= 0.65 ? "Release" : "← End"}
+              <span className="text-[11px] font-bold text-red-400/90 uppercase tracking-tight truncate">
+                {endProgress >= 0.65 ? "Release to End" : "← Drag to End"}
               </span>
             </div>
           </div>
 
-          <div className="w-[1px] h-5 bg-white/10 shrink-0" />
+          <div className="w-[1px] h-6 bg-white/10 shrink-0 mx-1" />
 
-          {/* Center: Take Break Button */}
+          {/* Right: Tactile Take Break Action */}
           <button
             type="button"
             onClick={onTakeBreak}
-            className="flex items-center gap-1 px-3 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/35 text-amber-300 text-[11px] font-bold transition-all hover:scale-[1.02] active:scale-[0.96] cursor-pointer shrink-0 shadow-sm mx-1"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/35 text-amber-300 text-xs font-bold transition-all hover:scale-[1.02] active:scale-[0.96] cursor-pointer shrink-0 shadow-sm"
           >
-            <Coffee className="w-3 h-3 text-amber-400" />
-            <span>BREAK</span>
+            <Coffee className="w-3.5 h-3.5 text-amber-400" />
+            <span>TAKE BREAK</span>
           </button>
-
-          <div className="w-[1px] h-5 bg-white/10 shrink-0" />
-
-          {/* Right: Active Live Dot */}
-          <div className="flex-1 flex items-center justify-end pr-1 gap-1 text-emerald-400 text-[11px] font-bold shrink-0">
-            <span className="text-[10px] uppercase hidden sm:inline">Active</span>
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
-            </span>
-          </div>
         </div>
 
-        {/* Fallback button cues */}
-        <div className="flex items-center justify-between px-0.5 text-[10px]">
+        {/* Fallback Accessible Action Strip */}
+        <div className="flex items-center justify-between px-1 text-[10px]">
           <span className="text-muted-foreground/60">
-            Drag left to end or tap actions
+            Drag left or use quick actions
           </span>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={onTakeBreak}
-              className="px-2 py-0.5 rounded bg-white/[0.04] hover:bg-amber-500/15 border border-white/10 text-amber-300 font-semibold text-[10px] transition-all cursor-pointer"
+              className="px-2 py-0.5 rounded-md bg-white/[0.04] hover:bg-amber-500/15 border border-white/10 text-amber-300 font-semibold text-[10px] transition-all cursor-pointer"
             >
               Break
             </button>
@@ -400,7 +417,7 @@ export function WorkdaySwipeAction({
             <button
               type="button"
               onClick={onEndWorkday}
-              className="px-2 py-0.5 rounded bg-white/[0.04] hover:bg-red-500/20 border border-white/10 text-red-400 font-semibold text-[10px] transition-all cursor-pointer"
+              className="px-2 py-0.5 rounded-md bg-white/[0.04] hover:bg-red-500/20 border border-white/10 text-red-400 font-semibold text-[10px] transition-all cursor-pointer"
             >
               End Day
             </button>
@@ -411,7 +428,7 @@ export function WorkdaySwipeAction({
   }
 
   return (
-    <div className="w-full py-2 px-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-center flex items-center justify-center gap-1.5 text-xs font-semibold text-blue-400">
+    <div className="w-full py-2.5 px-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-center flex items-center justify-center gap-1.5 text-xs font-semibold text-blue-400">
       <CheckCircle2 className="w-3.5 h-3.5" />
       <span>Workday completed</span>
     </div>

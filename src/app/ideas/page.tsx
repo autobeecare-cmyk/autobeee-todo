@@ -214,7 +214,7 @@ export default function IdeasPage() {
       initial="hidden"
       animate="show"
       variants={staggerContainer}
-      className="px-4 py-5 max-w-5xl mx-auto space-y-4"
+      className="px-4 sm:px-6 lg:px-8 py-5 sm:py-6 max-w-[1560px] w-full mx-auto space-y-5"
     >
       {/* Header */}
       <PageHeader
@@ -263,8 +263,8 @@ export default function IdeasPage() {
 
       {/* Grid */}
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-40 rounded-2xl" />)}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-40 rounded-2xl" />)}
         </div>
       ) : filtered.length === 0 ? (
         <EmptyState
@@ -276,7 +276,7 @@ export default function IdeasPage() {
           className="mt-6"
         />
       ) : (
-        <motion.div variants={staggerContainer} initial="hidden" animate="show" className="columns-1 sm:columns-2 lg:columns-3 gap-4">
+        <motion.div variants={staggerContainer} initial="hidden" animate="show" className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-4">
           {filtered.map(idea => (
             <motion.div key={idea.id} variants={fadeUp} className="mb-4 break-inside-avoid">
               <IdeaCard idea={idea} onEdit={setEditIdea} />

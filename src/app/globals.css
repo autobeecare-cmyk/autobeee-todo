@@ -322,6 +322,21 @@
   animation: active-workday-glow 4s ease-in-out infinite;
 }
 
+@keyframes break-workday-glow {
+  0%, 100% {
+    box-shadow: 0 0 25px rgba(245, 158, 11, 0.12), inset 0 0 15px rgba(245, 158, 11, 0.05);
+    border-color: rgba(245, 158, 11, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(245, 158, 11, 0.22), inset 0 0 25px rgba(245, 158, 11, 0.08);
+    border-color: rgba(245, 158, 11, 0.4);
+  }
+}
+
+.break-workday-card {
+  animation: break-workday-glow 4.5s ease-in-out infinite;
+}
+
 @keyframes button-glow-pulse {
   0%, 100% {
     box-shadow: 0 0 15px rgba(255, 193, 7, 0.25), 0 4px 12px rgba(0, 0, 0, 0.3);
@@ -339,6 +354,7 @@
   .animate-radar-ripple,
   .animate-radar-sweep,
   .active-workday-card,
+  .break-workday-card,
   .checkin-btn-glow,
   .pulse-glow,
   .float,

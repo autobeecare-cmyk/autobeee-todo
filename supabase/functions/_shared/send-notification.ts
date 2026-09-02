@@ -319,67 +319,14 @@ export async function sendPushNotification({
     } catch (v1Err: any) {
       console.error('FCM HTTP v1 error during authorization or dispatch:', v1Err)
     }
-  } else if (fcmServerKey) {
-    console.log('Dispatching via FCM Legacy API...')
-    try {
-      const fcmPayload = {
-        registration_ids: tokens.map((t) => t.fcm_token),
-        notification: { title, body },
-        data: {
-          type,
-          entity_id: entityId ?? '',
-          entity_type: entityType ?? '',
-          priority,
-          url: deepLink,
-        },
-        android: {
-          priority: isHighPriority ? 'high' : 'normal',
-          notification: {
-            icon: 'notification_icon',
-            color: '#FFC107',
-            sound: 'default',
-          },
-        },
-        webpush: {
-          notification: {
-            icon: '/icon-192.png',
-            badge: '/icon-192.png',
-            requireInteraction: isHighPriority,
-          },
-          fcm_options: { link: deepLink },
-        },
-      }
-
-      const fcmRes = await fetch('https://fcm.googleapis.com/fcm/send', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `key=${fcmServerKey}`,
-        },
-        body: JSON.stringify(fcmPayload),
-      })
-
-      const fcmResult = await fcmRes.json().catch(() => ({}))
-      if (fcmResult.results) {
-        fcmResult.results.forEach((r: any, i: number) => {
-          if (r.message_id) {
-            successCount++
-          } else {
-            failureCount++
-            if (r.error === 'NotRegistered' || r.error === 'InvalidRegistration') {
-              expiredTokens.push(tokens[i].fcm_token)
-            }
-          }
-        })
-      }
-    } catch (legacyErr: any) {
-      console.error('Legacy FCM send failed:', legacyErr)
-    }
   } else {
-    console.warn('No FCM HTTP v1 credentials or Legacy Server Key configured')
+    // FCM Legacy API (fcm.googleapis.com/fcm/send) was deprecated June 2024 and removed.
+    // Only FCM HTTP v1 with a Service Account is supported.
+    console.warn('No FCM HTTP v1 Service Account credentials configured. Set FIREBASE_SERVICE_ACCOUNT or FIREBASE_PROJECT_ID + FIREBASE_CLIENT_EMAIL + FIREBASE_PRIVATE_KEY.')
   }
 
-  // 3. Log notification attempt in notification_log table matching database schema
+  // 3. Log notification attempt in notification_log table — matches schema exactly
+  // (success_count, failure_count, details JSONB — not sent_at / metadata)
   try {
     await fetch(`${supabaseUrl}/rest/v1/notification_log`, {
       method: 'POST',
@@ -387,6 +334,7 @@ export async function sendPushNotification({
         apikey: supabaseKey,
         Authorization: `Bearer ${supabaseKey}`,
         'Content-Type': 'application/json',
+        Prefer: 'return=minimal',
       },
       body: JSON.stringify({
         title,
@@ -396,12 +344,12 @@ export async function sendPushNotification({
         entity_id: entityId || null,
         sent_to: toUsers,
         tokens_count: tokens.length,
-        sent_at: new Date().toISOString(),
-        metadata: {
-          success_count: successCount,
-          failure_count: failureCount,
+        success_count: successCount,
+        failure_count: failureCount,
+        details: {
           results: fcmResults,
           method: useV1 ? 'v1' : 'legacy',
+          sent_at: new Date().toISOString(),
         },
       }),
     })

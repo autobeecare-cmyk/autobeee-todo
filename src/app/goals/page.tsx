@@ -346,7 +346,7 @@ export default function GoalsPage() {
       initial="hidden"
       animate="show"
       variants={staggerContainer}
-      className="px-4 py-5 max-w-5xl mx-auto space-y-4"
+      className="px-4 sm:px-6 lg:px-8 py-5 sm:py-6 max-w-[1560px] w-full mx-auto space-y-5"
     >
       <PageHeader
         title="Goals"
@@ -382,7 +382,7 @@ export default function GoalsPage() {
       </div>
 
       {loading && showSkeleton ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-3.5 sm:gap-4">
           {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-44 rounded-2xl" />)}
         </div>
       ) : (!loading || !showSkeleton) && filtered.length === 0 ? (
@@ -403,7 +403,7 @@ export default function GoalsPage() {
                 variants={staggerContainer}
                 initial="hidden"
                 animate="show"
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-3.5 sm:gap-4"
               >
                 {active.map(g => (
                   <motion.div key={g.id} variants={fadeUp}>
@@ -421,7 +421,7 @@ export default function GoalsPage() {
                 variants={staggerContainer}
                 initial="hidden"
                 animate="show"
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-3.5 sm:gap-4"
               >
                 {paused.map(g => (
                   <motion.div key={g.id} variants={fadeUp}>
@@ -439,7 +439,7 @@ export default function GoalsPage() {
                 variants={staggerContainer}
                 initial="hidden"
                 animate="show"
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-3.5 sm:gap-4"
               >
                 {completed.map(g => (
                   <motion.div key={g.id} variants={fadeUp}>

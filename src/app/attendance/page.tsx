@@ -47,7 +47,7 @@ import {
 } from "recharts";
 import { useWorkdayStore } from "@/store/useWorkdayStore";
 import { useUIStore } from "@/store/useUIStore";
-import { getISTDateInfo } from "@/lib/supabase/workday";
+import { getISTDateInfo, isLateCheckIn } from "@/lib/supabase/workday";
 import type { FounderName, Workday } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { fadeUp, staggerContainer } from "@/lib/animations";
@@ -150,18 +150,20 @@ export default function AttendancePage() {
     }
     if (w.checkInAt && w.status === "working") {
       const start = new Date(w.checkInAt).getTime();
-      return Math.max(0, Math.floor((Date.now() - start) / 60000));
+      // If workday is for today in IST, live elapsed minutes is valid
+      if (w.workDate === todayStr) {
+        return Math.max(0, Math.floor((Date.now() - start) / 60000));
+      }
+      // If historical record was left unclosed, cap at 7:00 PM IST (19:00) on that work date
+      try {
+        const autoCloseTime = new Date(`${w.workDate}T19:00:00+05:30`).getTime();
+        const effectiveEnd = Math.min(autoCloseTime, start + (10 * 3600000));
+        return Math.max(0, Math.floor((effectiveEnd - start) / 60000));
+      } catch {
+        return 8 * 60; // fallback standard 8 hours
+      }
     }
     return 0;
-  };
-
-  // Helper to check if a checkIn is Late (after 10:00 AM IST)
-  const isLateCheckIn = (w: Workday): boolean => {
-    if (!w.checkInAt) return false;
-    const istDate = new Date(new Date(w.checkInAt).getTime() + 5.5 * 60 * 60 * 1000);
-    const hour = istDate.getUTCHours();
-    const minute = istDate.getUTCMinutes();
-    return hour > 10 || (hour === 10 && minute > 0);
   };
 
   // ─────────────────────────────────────────────────────────────
@@ -404,7 +406,7 @@ export default function AttendancePage() {
       if (fRecord.checkOutAt) {
         outTime = format(new Date(fRecord.checkOutAt), "hh:mm a");
       } else if (fRecord.status === "working") {
-        outTime = "Active Now";
+        outTime = fRecord.workDate === todayStr ? "Active Now" : "07:00 PM (Auto)";
       }
 
       const mins = getWorkedMinutes(fRecord);
@@ -419,7 +421,8 @@ export default function AttendancePage() {
         statusText = "Late Arrival";
         statusColor = "text-amber-400 bg-amber-500/10 border-amber-500/25";
       } else {
-        statusText = fRecord.status === "working" ? "Currently Present" : "Present (Completed)";
+        const isCurrentlyWorking = fRecord.status === "working" && fRecord.workDate === todayStr;
+        statusText = isCurrentlyWorking ? "Currently Present" : "Present (Completed)";
         statusColor = "text-emerald-400 bg-emerald-500/10 border-emerald-500/25";
       }
     }
@@ -472,10 +475,16 @@ export default function AttendancePage() {
           const istOut = new Date(checkOutDate.getTime() + 5.5 * 60 * 60 * 1000);
           outMins = istOut.getUTCHours() * 60 + istOut.getUTCMinutes();
         } else if (record.status === "working") {
-          isWorkingNow = true;
-          checkOutStr = "Active";
-          const nowIST = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
-          outMins = nowIST.getUTCHours() * 60 + nowIST.getUTCMinutes();
+          if (record.workDate === todayStr) {
+            isWorkingNow = true;
+            checkOutStr = "Active";
+            const nowIST = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+            outMins = nowIST.getUTCHours() * 60 + nowIST.getUTCMinutes();
+          } else {
+            isWorkingNow = false;
+            checkOutStr = "07:00 PM";
+            outMins = 19 * 60; // 7:00 PM IST
+          }
         }
 
         // Clamp to timeline scale
@@ -575,7 +584,7 @@ export default function AttendancePage() {
   const selectedFounderStat = founderStatsMap[selectedFounder];
 
   return (
-    <div className="px-3.5 sm:px-6 py-5 max-w-7xl mx-auto space-y-5 pb-24 md:pb-12">
+    <div className="px-3.5 sm:px-6 lg:px-8 py-5 sm:py-6 max-w-[1560px] w-full mx-auto space-y-5 sm:space-y-6 pb-24 md:pb-12">
       {/* ─────────────────────────────────────────────────────────────
           1. HEADER & PERIOD SELECTOR
       ───────────────────────────────────────────────────────────── */}

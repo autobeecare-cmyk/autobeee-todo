@@ -19,8 +19,11 @@ export const registerServiceWorker = async (): Promise<ServiceWorkerRegistration
   }
 
   try {
+    // BUG-8 fix: Register the *dynamic* SW served by /api/firebase-sw which injects
+    // Firebase config from env vars at request time, rather than the static
+    // /firebase-messaging-sw.js which contains hardcoded credentials.
     const swRegistration = await navigator.serviceWorker.register(
-      '/firebase-messaging-sw.js',
+      '/api/firebase-sw',
       { scope: '/' }
     )
     await navigator.serviceWorker.ready

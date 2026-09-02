@@ -17,6 +17,7 @@ import {
   Calendar,
   Clock,
   CheckSquare,
+  Circle,
   Bot,
   DollarSign,
   ChevronRight,
@@ -456,6 +457,67 @@ export default function Dashboard() {
     </div>
   );
 
+  const ImportantTasksSection = (
+    <div className="glass-card-premium p-3.5 sm:p-4 rounded-2xl space-y-2.5">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <CheckSquare className="w-3.5 h-3.5 text-[#FFC107]" />
+          <h3 className="font-bold text-xs text-muted-foreground uppercase tracking-wider">
+            PRIORITY TASKS
+          </h3>
+        </div>
+        <Link
+          href="/tasks"
+          className="text-xs text-[#FFC107] font-semibold hover:underline flex items-center gap-0.5"
+        >
+          View all ({myOpenTasks.length}) <ChevronRight className="w-3 h-3" />
+        </Link>
+      </div>
+
+      {myOpenTasks.length === 0 ? (
+        <div className="py-4 text-center">
+          <p className="text-xs text-muted-foreground">All tasks clear! You're good to go.</p>
+        </div>
+      ) : (
+        <div className="space-y-1.5">
+          {myOpenTasks.slice(0, 3).map((task) => (
+            <div
+              key={task.id}
+              className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.02] hover:bg-white/[0.04] border border-white/[0.05] transition-all group"
+            >
+              <div className="flex items-center gap-2.5 min-w-0 flex-1 pr-2">
+                <button
+                  onClick={() => handleCompleteTask(task)}
+                  className="shrink-0 text-muted-foreground hover:text-emerald-400 transition-colors cursor-pointer"
+                  title="Mark as done"
+                >
+                  <Circle className="w-4 h-4" />
+                </button>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-foreground/90 truncate">
+                    {task.title}
+                  </p>
+                  <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-muted-foreground">
+                    <AutoBeeBadge variant="priority" priority={task.priority} size="sm" />
+                    {task.deadline && (
+                      <span>· Due {format(new Date(task.deadline), "d MMM")}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <Link
+                href="/tasks"
+                className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-[#FFC107] transition-opacity"
+              >
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   const heroCardElement = (
     <WorkdayCard
       greeting={{
@@ -468,16 +530,16 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="px-3.5 sm:px-5 py-4 max-w-6xl mx-auto space-y-3.5">
+    <div className="px-3.5 sm:px-6 lg:px-8 py-4 sm:py-5 max-w-[1560px] w-full mx-auto space-y-4">
       <motion.div
         initial="hidden"
         animate="show"
         variants={staggerContainer}
-        className="space-y-3.5"
+        className="space-y-4"
       >
         {/* ──────────────────────────────────────────────
             MOBILE LAYOUT (< 1024px)
-            Order: Hero Workday (with Greeting) -> Focus -> 2x2 Stats -> Office -> Attendance Entry -> Actions
+            Order: Hero Workday -> Focus -> 2x2 Stats -> Office -> Tasks -> Attendance Entry -> Actions
         ────────────────────────────────────────────── */}
         <div className="lg:hidden space-y-3">
           <motion.div variants={fadeUp}>
@@ -497,6 +559,10 @@ export default function Dashboard() {
           </motion.div>
 
           <motion.div variants={fadeUp}>
+            {ImportantTasksSection}
+          </motion.div>
+
+          <motion.div variants={fadeUp}>
             {AttendanceEntryPoint}
           </motion.div>
 
@@ -507,11 +573,11 @@ export default function Dashboard() {
 
         {/* ──────────────────────────────────────────────
             DESKTOP LAYOUT (>= 1024px)
-            2-Column balanced grid
+            2-Column balanced grid utilizing available screen space
         ────────────────────────────────────────────── */}
-        <div className="hidden lg:grid lg:grid-cols-12 gap-3.5">
-          {/* LEFT / MAIN COLUMN */}
-          <div className="lg:col-span-7 space-y-3">
+        <div className="hidden lg:grid lg:grid-cols-12 gap-4 items-start">
+          {/* LEFT / MAIN COLUMN (7 cols) */}
+          <div className="lg:col-span-7 space-y-3.5">
             <motion.div variants={fadeUp}>
               {heroCardElement}
             </motion.div>
@@ -521,12 +587,16 @@ export default function Dashboard() {
             </motion.div>
 
             <motion.div variants={fadeUp}>
+              {ImportantTasksSection}
+            </motion.div>
+
+            <motion.div variants={fadeUp}>
               {AttendanceEntryPoint}
             </motion.div>
           </div>
 
-          {/* RIGHT / SECONDARY COLUMN */}
-          <div className="lg:col-span-5 space-y-3">
+          {/* RIGHT / SECONDARY COLUMN (5 cols) */}
+          <div className="lg:col-span-5 space-y-3.5">
             <motion.div variants={fadeUp}>
               {QuickStatsGrid}
             </motion.div>

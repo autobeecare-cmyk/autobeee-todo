@@ -236,9 +236,9 @@ export default function InsightsPage() {
 
   if (loading) {
     return (
-      <div className="px-4 py-6 max-w-5xl mx-auto space-y-4">
+      <div className="px-4 sm:px-6 lg:px-8 py-5 sm:py-6 max-w-[1560px] w-full mx-auto space-y-5">
         <Skeleton className="h-8 w-40 rounded-xl" />
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
           {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -251,7 +251,7 @@ export default function InsightsPage() {
   return (
     <motion.div
       initial="hidden" animate="show" variants={staggerContainer}
-      className="px-4 py-5 max-w-5xl mx-auto space-y-4"
+      className="px-4 sm:px-6 lg:px-8 py-5 sm:py-6 max-w-[1560px] w-full mx-auto space-y-5"
     >
       <PageHeader
         title="Insights"

@@ -371,7 +371,7 @@ export default function DocumentVaultPage() {
   }, [filteredDocs]);
 
   return (
-    <div className="px-4 py-5 max-w-5xl mx-auto space-y-4">
+    <div className="px-4 sm:px-6 lg:px-8 py-5 sm:py-6 max-w-[1560px] w-full mx-auto space-y-5">
       {/* Header bar */}
       <PageHeader
         title="Document Vault"
@@ -425,7 +425,7 @@ export default function DocumentVaultPage() {
       {recentDocs.length > 0 && !search && filterCategory === "all" && (
         <div className="space-y-2.5">
           <SectionHeader title="Pinned & Recent Documents" subtitle={`${recentDocs.length} latest`} />
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3.5">
             {recentDocs.map(doc => (
               <DocumentCard
                 key={doc.id}
@@ -484,7 +484,7 @@ export default function DocumentVaultPage() {
                       transition={{ duration: 0.2, ease: "easeOut" }}
                       className="p-4"
                     >
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3.5">
                         {list.map(doc => (
                           <DocumentCard
                             key={doc.id}

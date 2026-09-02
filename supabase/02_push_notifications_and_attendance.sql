@@ -44,6 +44,7 @@ ALTER TABLE public.notifications ADD CONSTRAINT notifications_type_check CHECK (
         'task_reminder',
         'meeting',
         'meeting_alert',
+        'meeting_change',
         'goal',
         'system'
     )

@@ -50,7 +50,8 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
   },
 
   markAsRead: async (id) => {
-    await markNotificationAsRead(id);
+    const currentUser = useUIStore.getState().currentUser as FounderName;
+    await markNotificationAsRead(id, currentUser);
     await get().fetchNotifications();
   },
 

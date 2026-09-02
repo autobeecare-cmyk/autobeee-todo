@@ -1510,7 +1510,7 @@ export default function PartnersCRMPage() {
   };
 
   return (
-    <div className="px-4 py-5 max-w-6xl mx-auto space-y-4">
+    <div className="px-4 sm:px-6 lg:px-8 py-5 sm:py-6 max-w-[1720px] w-full mx-auto space-y-5">
       {/* Header bar */}
       <PageHeader
         title="Partners CRM"

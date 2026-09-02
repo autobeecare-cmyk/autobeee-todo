@@ -24,6 +24,11 @@ export function AttendanceHistoryModal({ onClose }: { onClose: () => void }) {
           const start = new Date(w.checkInAt).getTime();
           const end = new Date(w.checkOutAt).getTime();
           totalMinutes += Math.max(0, Math.floor((end - start) / 60000));
+        } else if (w.checkInAt && w.status === "working") {
+          const start = new Date(w.checkInAt).getTime();
+          const autoCloseTime = new Date(`${w.workDate}T19:00:00+05:30`).getTime();
+          const effectiveEnd = Math.min(autoCloseTime, start + (10 * 3600000));
+          totalMinutes += Math.max(0, Math.floor((effectiveEnd - start) / 60000));
         }
       });
 

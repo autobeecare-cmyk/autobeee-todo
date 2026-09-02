@@ -31,7 +31,33 @@ export async function getNotifications(user?: FounderName, limit = 50): Promise<
     console.error("Error fetching notifications:", error);
     return [];
   }
-  return (data || []).map(mapNotificationFromDb);
+
+  const list = data || [];
+  let userReadIds = new Set<string>();
+
+  if (user && list.length > 0) {
+    try {
+      const { data: readEntries } = await supabase
+        .from("notification_reads")
+        .select("notification_id")
+        .eq("user_name", user)
+        .in("notification_id", list.map((n) => n.id));
+
+      if (readEntries) {
+        userReadIds = new Set(readEntries.map((r: any) => r.notification_id));
+      }
+    } catch {
+      // Graceful fallback if notification_reads table migration is pending
+    }
+  }
+
+  return list.map((item) => {
+    const mapped = mapNotificationFromDb(item);
+    if (user && userReadIds.has(item.id)) {
+      mapped.read = true;
+    }
+    return mapped;
+  });
 }
 
 export async function createNotification(n: Omit<AppNotification, "id" | "read" | "createdAt">): Promise<AppNotification | null> {
@@ -59,28 +85,24 @@ export async function createNotification(n: Omit<AppNotification, "id" | "read" 
     return null;
   }
 
-  // Trigger optional server-side push notification endpoint
-  try {
-    fetch("/api/notifications/send", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: n.title,
-        body: n.body,
-        recipient: n.recipient,
-        actor: n.actor,
-        type: n.type,
-        entityId: n.eventId,
-      }),
-    }).catch((err) => console.error("Push notify error:", err));
-  } catch (e) {
-    // Non-blocking
-  }
-
   return mapNotificationFromDb(data);
 }
 
-export async function markNotificationAsRead(id: string) {
+export async function markNotificationAsRead(id: string, user?: FounderName) {
+  if (user) {
+    try {
+      await supabase
+        .from("notification_reads")
+        .upsert(
+          { notification_id: id, user_name: user, read_at: new Date().toISOString() },
+          { onConflict: "notification_id,user_name" }
+        );
+    } catch {
+      // Fallback
+    }
+  }
+
+  // Update row-level read if direct recipient or fallback
   const { error } = await supabase
     .from("notifications")
     .update({ read: true })
@@ -89,10 +111,34 @@ export async function markNotificationAsRead(id: string) {
 }
 
 export async function markAllNotificationsAsRead(user: FounderName) {
+  try {
+    // Fetch all current visible notifications for user
+    const { data: visible } = await supabase
+      .from("notifications")
+      .select("id, recipient")
+      .or(`recipient.eq.${user},recipient.eq.All`);
+
+    if (visible && visible.length > 0) {
+      const nowIso = new Date().toISOString();
+      const readRows = visible.map((n) => ({
+        notification_id: n.id,
+        user_name: user,
+        read_at: nowIso,
+      }));
+
+      await supabase
+        .from("notification_reads")
+        .upsert(readRows, { onConflict: "notification_id,user_name" });
+    }
+  } catch {
+    // Fallback
+  }
+
+  // Also update direct user notifications to read = true
   const { error } = await supabase
     .from("notifications")
     .update({ read: true })
-    .or(`recipient.eq.${user},recipient.eq.All`);
+    .eq("recipient", user);
   if (error) console.error("Error marking all read:", error);
 }
 

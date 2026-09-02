@@ -17,12 +17,19 @@ import {
 import { useNotificationStore } from "@/store/useNotificationStore";
 
 export function NotificationToast() {
-  const { toasts, dismissToast, initRealtime } = useNotificationStore();
+  const { toasts, dismissToast } = useNotificationStore();
 
+  // RACE-4 fix: initRealtime() is called by Providers.tsx which is mounted above us.
+  // Calling it here too caused a second Supabase channel subscription whose cleanup
+  // was lost (the guard returns a no-op), leaving dangling realtime channels.
+
+  // BUG-10 fix: Auto-dismiss each toast after 6 seconds
   useEffect(() => {
-    const unsub = initRealtime();
-    return () => unsub();
-  }, [initRealtime]);
+    if (toasts.length === 0) return;
+    const latest = toasts[toasts.length - 1];
+    const timer = setTimeout(() => dismissToast(latest.id), 6000);
+    return () => clearTimeout(timer);
+  }, [toasts, dismissToast]);
 
   const getIcon = (type: string) => {
     switch (type) {

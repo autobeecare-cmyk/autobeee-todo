@@ -678,8 +678,8 @@ export default function TasksPage() {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full flex flex-col relative pb-20 md:pb-6">
-      {/* ── MOBILE HEADER (Tasks 🔍 + & Subtext) ── */}
-      <div className="px-4 pt-4 pb-2 space-y-3">
+      {/* ── HEADER (Tasks 🔍 + & Subtext) ── */}
+      <div className="px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-2 space-y-3 max-w-[1560px] w-full mx-auto">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">Tasks</h1>
@@ -817,11 +817,11 @@ export default function TasksPage() {
       </div>
 
       {/* ── Tasks Content List / Cards ── */}
-      <div className="flex-1 px-4 py-2">
+      <div className="flex-1 px-4 sm:px-6 lg:px-8 py-2 max-w-[1560px] w-full mx-auto">
         {loading ? (
-          <div className="space-y-2.5">
-            {[...Array(4)].map((_, i) => (
-              <Skeleton key={i} className="h-16 w-full rounded-2xl" />
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-2.5 sm:gap-3">
+            {[...Array(6)].map((_, i) => (
+              <Skeleton key={i} className="h-20 w-full rounded-2xl" />
             ))}
           </div>
         ) : filtered.length === 0 ? (
@@ -850,8 +850,8 @@ export default function TasksPage() {
             </div>
           </DndContext>
         ) : (
-          /* Mobile First Responsive Task Cards List */
-          <div className="space-y-2.5">
+          /* Responsive Multi-Column Task Cards List */
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-2.5 sm:gap-3 items-start">
             <AnimatePresence mode="popLayout">
               {filtered.map((task) => (
                 <motion.div key={task.id} variants={fadeUp} exit={taskComplete.exit} layout>

@@ -23,6 +23,9 @@ interface WorkdayStore {
   initRealtime: () => () => void;
 }
 
+let workdaySubscribersCount = 0;
+let workdayUnsubscribeFn: (() => void) | null = null;
+
 export const useWorkdayStore = create<WorkdayStore>((set, get) => ({
   todayWorkdays: [],
   allWorkdays: [],
@@ -71,17 +74,24 @@ export const useWorkdayStore = create<WorkdayStore>((set, get) => ({
   },
 
   initRealtime: () => {
-    if (get().subscribed) return () => {};
-    set({ subscribed: true });
-    get().fetchWorkdays();
+    workdaySubscribersCount++;
 
-    const unsubscribe = subscribeWorkdays(() => {
+    if (!workdayUnsubscribeFn) {
+      set({ subscribed: true });
       get().fetchWorkdays();
-    });
+
+      workdayUnsubscribeFn = subscribeWorkdays(() => {
+        get().fetchWorkdays();
+      });
+    }
 
     return () => {
-      unsubscribe();
-      set({ subscribed: false });
+      workdaySubscribersCount = Math.max(0, workdaySubscribersCount - 1);
+      if (workdaySubscribersCount === 0 && workdayUnsubscribeFn) {
+        workdayUnsubscribeFn();
+        workdayUnsubscribeFn = null;
+        set({ subscribed: false });
+      }
     };
   },
 }));

@@ -637,7 +637,7 @@ export default function MoneyPage() {
   };
 
   return (
-    <div className="px-3.5 sm:px-6 py-5 max-w-6xl mx-auto space-y-4 sm:space-y-6">
+    <div className="px-3.5 sm:px-6 lg:px-8 py-5 sm:py-6 max-w-[1560px] w-full mx-auto space-y-5 sm:space-y-6">
       {/* ── TOP HEADER ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 pb-1">
         <div>
