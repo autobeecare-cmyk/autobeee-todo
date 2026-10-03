@@ -6,10 +6,9 @@ import { useUIStore } from "@/store/useUIStore";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 import type { FounderName } from "@/lib/types";
 
-const FOUNDER_INFO: Record<FounderName, { role: string; color: string; initial: string }> = {
-  Sourabh: { role: "CEO", color: "bg-[#FFC107] text-[#111]", initial: "S" },
-  Asher: { role: "CTO", color: "bg-[#3B82F6] text-[#fff]", initial: "A" },
-  Subin: { role: "COO", color: "bg-[#10B981] text-[#fff]", initial: "Su" },
+const FOUNDER_INFO: Record<FounderName, { color: string; initial: string }> = {
+  Sourabh: { color: "bg-[#FFC107] text-[#111]", initial: "S" },
+  Asher: { color: "bg-[#3B82F6] text-[#fff]", initial: "A" },
 };
 
 export function TopBar() {
@@ -72,9 +71,8 @@ export function TopBar() {
             onChange={(e) => setCurrentUser(e.target.value as FounderName)}
             className="bg-transparent text-xs font-semibold text-foreground outline-none cursor-pointer pr-1"
           >
-            <option value="Sourabh" className="bg-[#161616] text-[#f5f5f5]">Sourabh (CEO)</option>
-            <option value="Asher" className="bg-[#161616] text-[#f5f5f5]">Asher (CTO)</option>
-            <option value="Subin" className="bg-[#161616] text-[#f5f5f5]">Subin (COO)</option>
+            <option value="Sourabh" className="bg-[#161616] text-[#f5f5f5]">Sourabh</option>
+            <option value="Asher" className="bg-[#161616] text-[#f5f5f5]">Asher</option>
           </select>
         </div>
 

@@ -9,7 +9,7 @@ export async function POST(req: Request) {
       throw new Error("Gemini API key is not configured in .env.local.");
     }
 
-    const systemInstruction = `You are a productivity assistant for a 3-person startup team (Sourabh, Asher, Subin). 
+    const systemInstruction = `You are a productivity assistant for a 2-person startup team (Sourabh, Asher). 
 Be brutally concise. 2-3 sentences max. Highlight what's urgent or overdue. 
 Mention money only if something notable (high spend, renewal due). 
 Never use bullet points. Write like a smart colleague, not a robot.`;

@@ -1,13 +1,16 @@
 "use client";
 
 // src/app/page.tsx — AutoBee OS Optimized Founder Dashboard
-import { useMemo, useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useMemo, useState } from "react";
+import { motion } from "framer-motion";
 import {
   format,
   isToday,
   isPast,
   parseISO,
+  startOfMonth,
+  endOfMonth,
+  isWithinInterval,
 } from "date-fns";
 import {
   CheckCircle2,
@@ -15,7 +18,6 @@ import {
   ArrowRight,
   Plus,
   Calendar,
-  Clock,
   CheckSquare,
   Circle,
   Bot,
@@ -26,38 +28,23 @@ import Link from "next/link";
 import { useTaskStore } from "@/store/useTaskStore";
 import { useGoalStore } from "@/store/useGoalStore";
 import { useMeetingStore } from "@/store/useMeetingStore";
+import { useExpenseStore } from "@/store/useExpenseStore";
 import { useUIStore } from "@/store/useUIStore";
-import { useWorkdayStore } from "@/store/useWorkdayStore";
-import { getISTDateInfo } from "@/lib/supabase/workday";
 import { logActivity } from "@/lib/supabase/activity";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Task, FounderName } from "@/lib/types";
 import { fadeUp, staggerContainer } from "@/lib/animations";
-import { WorkdayCard } from "@/components/workday/WorkdayCard";
-import { OfficePresenceCard } from "@/components/workday/OfficePresenceCard";
-import { AttendanceHistoryModal } from "@/components/workday/AttendanceHistoryModal";
 import { AutoBeeBadge } from "@/components/common/AutoBeeBadge";
-
-const FOUNDER_ROLES: Record<string, string> = {
-  Sourabh: "CEO",
-  Asher: "CTO",
-  Subin: "COO",
-};
+import { WelcomeBanner } from "@/components/dashboard/WelcomeBanner";
 
 export default function Dashboard() {
-  const [historyModalOpen, setHistoryModalOpen] = useState(false);
   const currentUser = useUIStore((s) => s.currentUser) as FounderName;
   const { setQuickAddOpen } = useUIStore();
 
   const { tasks, loading: tasksLoading, deleteTask: storeDeleteTask } = useTaskStore();
   const { goals, loading: goalsLoading } = useGoalStore();
   const { meetings, loading: meetingsLoading } = useMeetingStore();
-  const { todayWorkdays } = useWorkdayStore();
-
-  const now = new Date();
-  const { hours } = getISTDateInfo(now);
-
-  const myWorkday = todayWorkdays.find((w) => w.founderName === currentUser);
+  const { expenses, loading: expensesLoading } = useExpenseStore();
 
   // ──────────────────────────────────────────────
   // 1. STRICT FOUNDER-SPECIFIC TASK PERSONALIZATION
@@ -94,19 +81,7 @@ export default function Dashboard() {
     );
   }, [myOpenTasks]);
 
-  // ──────────────────────────────────────────────
-  // 2. DYNAMIC GREETING & CONTEXT
-  // ──────────────────────────────────────────────
-  const greetingObj = useMemo(() => {
-    if (hours < 12) {
-      return { title: `Good morning,\n${currentUser}. ☀️` };
-    }
-    if (hours < 17) {
-      return { title: `Good afternoon,\n${currentUser}. 👋` };
-    }
-    return { title: `Good evening,\n${currentUser}. 🌙` };
-  }, [hours, currentUser]);
-
+  // Contextual status headline
   const contextualLine = useMemo(() => {
     if (myUrgentTasks.length > 0) {
       return `${myUrgentTasks.length} urgent task${myUrgentTasks.length > 1 ? "s need" : " needs"} attention.`;
@@ -118,16 +93,16 @@ export default function Dashboard() {
       return `${myOverdueTasks.length} task${myOverdueTasks.length > 1 ? "s are" : " is"} overdue.`;
     }
     if (myCompletedTasksToday.length > 0) {
-      return `${myCompletedTasksToday.length} completed today. Keep it up!`;
+      return `${myCompletedTasksToday.length} completed today. Keep up the momentum!`;
     }
     if (myOpenTasks.length > 0) {
-      return `${myOpenTasks.length} task${myOpenTasks.length > 1 ? "s" : ""} in queue.`;
+      return `${myOpenTasks.length} task${myOpenTasks.length > 1 ? "s" : ""} in your queue.`;
     }
-    return "You're all clear for now.";
+    return "You're all clear for now. Great time for deep strategic work.";
   }, [myUrgentTasks, myDueTodayTasks, myOverdueTasks, myCompletedTasksToday, myOpenTasks]);
 
   // ──────────────────────────────────────────────
-  // 3. TODAY'S FOCUS (Strictly Founder-Specific)
+  // 2. TODAY'S FOCUS (Strictly Founder-Specific)
   // ──────────────────────────────────────────────
   const focusTask = useMemo(() => {
     if (myOpenTasks.length === 0) return null;
@@ -166,7 +141,7 @@ export default function Dashboard() {
   }, [myOpenTasks]);
 
   // ──────────────────────────────────────────────
-  // 4. STATS DATA
+  // 3. STATS DATA
   // ──────────────────────────────────────────────
   const activeGoals = useMemo(() => goals.filter((g) => g.status === "active"), [goals]);
   const activeGoalsCount = activeGoals.length;
@@ -187,34 +162,20 @@ export default function Dashboard() {
     return meetings.filter((m) => m.status === "upcoming").length;
   }, [meetings]);
 
-  const [focusTimeStr, setFocusTimeStr] = useState("0h 00m");
-
-  useEffect(() => {
-    if (!myWorkday || myWorkday.status !== "working" || !myWorkday.checkInAt) {
-      if (myWorkday?.status === "completed" && myWorkday.checkInAt && myWorkday.checkOutAt) {
-        const start = new Date(myWorkday.checkInAt).getTime();
-        const end = new Date(myWorkday.checkOutAt).getTime();
-        const diffMs = Math.max(0, end - start);
-        const h = Math.floor(diffMs / 3600000);
-        const m = Math.floor((diffMs % 3600000) / 60000);
-        setFocusTimeStr(`${h}h ${String(m).padStart(2, "0")}m`);
-      } else {
-        setFocusTimeStr("0h 00m");
-      }
-      return;
-    }
-
-    const calc = () => {
-      const checkInTime = new Date(myWorkday.checkInAt).getTime();
-      const diffMs = Math.max(0, Date.now() - checkInTime);
-      const h = Math.floor(diffMs / 3600000);
-      const m = Math.floor((diffMs % 3600000) / 60000);
-      setFocusTimeStr(`${h}h ${String(m).padStart(2, "0")}m`);
-    };
-    calc();
-    const interval = setInterval(calc, 60000);
-    return () => clearInterval(interval);
-  }, [myWorkday]);
+  // Current month company spend
+  const monthSpending = useMemo(() => {
+    const now = new Date();
+    const interval = { start: startOfMonth(now), end: endOfMonth(now) };
+    return expenses
+      .filter((e) => {
+        try {
+          return isWithinInterval(parseISO(e.date), interval);
+        } catch {
+          return false;
+        }
+      })
+      .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+  }, [expenses]);
 
   // Complete Task handler
   const [completedTaskId, setCompletedTaskId] = useState<string | null>(null);
@@ -238,11 +199,9 @@ export default function Dashboard() {
     }
   };
 
-  const userRole = FOUNDER_ROLES[currentUser] || "Founder";
-
   // Shared Subcomponents for Desktop & Mobile
   const FocusCard = (
-    <div className="glass-card-premium p-3.5 sm:p-4 space-y-2.5 shadow-sm">
+    <div className="glass-card-premium p-4 sm:p-5 space-y-3 shadow-md border border-white/[0.08]">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5">
           <span className="text-[#FFC107] font-bold text-xs">⚡</span>
@@ -294,10 +253,10 @@ export default function Dashboard() {
           </div>
         </div>
       ) : (
-        <div className="flex items-center justify-between py-0.5">
+        <div className="flex items-center justify-between py-1">
           <div className="space-y-0.5">
             <p className="text-xs font-semibold text-foreground">You're clear for now.</p>
-            <p className="text-[10px] text-muted-foreground">Nice work. No pending items.</p>
+            <p className="text-[10px] text-muted-foreground">Nice work. All priority tasks completed.</p>
           </div>
           <Link
             href="/tasks"
@@ -311,13 +270,13 @@ export default function Dashboard() {
   );
 
   const QuickStatsGrid = (
-    <div className="grid grid-cols-2 gap-2">
+    <div className="grid grid-cols-2 gap-2.5">
       {/* TASKS */}
       <Link href="/tasks" className="block group">
-        <div className="glass-card-premium p-3 rounded-xl border border-white/[0.07] hover:border-[#FFC107]/30 transition-all space-y-0.5">
+        <div className="glass-card-premium p-3.5 rounded-xl border border-white/[0.07] hover:border-[#FFC107]/30 transition-all space-y-0.5">
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-[10px] font-bold uppercase tracking-wider">TASKS</span>
-            <CheckSquare className="w-3 h-3 text-[#FFC107] group-hover:scale-110 transition-transform" />
+            <CheckSquare className="w-3.5 h-3.5 text-[#FFC107] group-hover:scale-110 transition-transform" />
           </div>
           <div className="text-lg font-black text-foreground tabular-nums">
             {tasksLoading ? <Skeleton className="h-6 w-10 rounded-md" /> : myOpenTasks.length}
@@ -325,17 +284,17 @@ export default function Dashboard() {
           <p className="text-[10px] text-muted-foreground truncate">
             {myDueTodayTasks.length > 0
               ? `${myDueTodayTasks.length} due today`
-              : `${myCompletedTasksToday.length} done`}
+              : `${myCompletedTasksToday.length} done today`}
           </p>
         </div>
       </Link>
 
       {/* GOALS */}
       <Link href="/goals" className="block group">
-        <div className="glass-card-premium p-3 rounded-xl border border-white/[0.07] hover:border-purple-500/30 transition-all space-y-0.5">
+        <div className="glass-card-premium p-3.5 rounded-xl border border-white/[0.07] hover:border-purple-500/30 transition-all space-y-0.5">
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-[10px] font-bold uppercase tracking-wider">GOALS</span>
-            <Target className="w-3 h-3 text-purple-400 group-hover:scale-110 transition-transform" />
+            <Target className="w-3.5 h-3.5 text-purple-400 group-hover:scale-110 transition-transform" />
           </div>
           <div className="text-lg font-black text-foreground tabular-nums">
             {goalsLoading ? <Skeleton className="h-6 w-10 rounded-md" /> : activeGoalsCount}
@@ -348,10 +307,10 @@ export default function Dashboard() {
 
       {/* MEETINGS */}
       <Link href="/meetings" className="block group">
-        <div className="glass-card-premium p-3 rounded-xl border border-white/[0.07] hover:border-orange-500/30 transition-all space-y-0.5">
+        <div className="glass-card-premium p-3.5 rounded-xl border border-white/[0.07] hover:border-orange-500/30 transition-all space-y-0.5">
           <div className="flex items-center justify-between text-muted-foreground">
             <span className="text-[10px] font-bold uppercase tracking-wider">MEETINGS</span>
-            <Calendar className="w-3 h-3 text-orange-400 group-hover:scale-110 transition-transform" />
+            <Calendar className="w-3.5 h-3.5 text-orange-400 group-hover:scale-110 transition-transform" />
           </div>
           <div className="text-lg font-black text-foreground tabular-nums">
             {meetingsLoading ? <Skeleton className="h-6 w-10 rounded-md" /> : meetingsTodayCount}
@@ -362,103 +321,80 @@ export default function Dashboard() {
         </div>
       </Link>
 
-      {/* FOCUS */}
-      <div className="glass-card-premium p-3 rounded-xl border border-white/[0.07] hover:border-emerald-500/30 transition-all space-y-0.5">
-        <div className="flex items-center justify-between text-muted-foreground">
-          <span className="text-[10px] font-bold uppercase tracking-wider">FOCUS</span>
-          <Clock className="w-3 h-3 text-emerald-400" />
+      {/* MONEY TRACKER */}
+      <Link href="/money" className="block group">
+        <div className="glass-card-premium p-3.5 rounded-xl border border-white/[0.07] hover:border-emerald-500/30 transition-all space-y-0.5">
+          <div className="flex items-center justify-between text-muted-foreground">
+            <span className="text-[10px] font-bold uppercase tracking-wider">SPENDING</span>
+            <DollarSign className="w-3.5 h-3.5 text-emerald-400 group-hover:scale-110 transition-transform" />
+          </div>
+          <div className="text-lg font-black text-foreground tabular-nums">
+            {expensesLoading ? (
+              <Skeleton className="h-6 w-14 rounded-md" />
+            ) : (
+              `₹${monthSpending.toLocaleString("en-IN")}`
+            )}
+          </div>
+          <p className="text-[10px] text-muted-foreground truncate">
+            This month
+          </p>
         </div>
-        <div className="text-lg font-black text-foreground tabular-nums">
-          {focusTimeStr}
-        </div>
-        <p className="text-[10px] text-muted-foreground truncate">
-          {myWorkday?.status === "working" ? "Active today" : "Logged time"}
-        </p>
-      </div>
+      </Link>
     </div>
   );
 
   const QuickActionsSection = (
-    <div className="glass-card-premium p-3 rounded-xl space-y-2">
+    <div className="glass-card-premium p-4 rounded-2xl space-y-2.5 border border-white/[0.07]">
       <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">
         QUICK ACTIONS
       </span>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 gap-1.5">
+      <div className="grid grid-cols-2 gap-2">
         <button
           onClick={() => setQuickAddOpen(true, "task")}
-          className="flex items-center gap-1.5 p-2 rounded-lg bg-white/[0.02] hover:bg-[#FFC107]/15 border border-white/06 hover:border-[#FFC107]/30 text-[11px] font-semibold text-foreground hover:text-[#FFC107] transition-all cursor-pointer"
+          className="flex items-center gap-1.5 p-2.5 rounded-xl bg-white/[0.02] hover:bg-[#FFC107]/15 border border-white/06 hover:border-[#FFC107]/30 text-xs font-semibold text-foreground hover:text-[#FFC107] transition-all cursor-pointer"
         >
-          <Plus className="w-3 h-3 text-[#FFC107]" />
+          <Plus className="w-3.5 h-3.5 text-[#FFC107]" />
           <span>+ Task</span>
         </button>
 
         <Link
           href="/goals"
-          className="flex items-center gap-1.5 p-2 rounded-lg bg-white/[0.02] hover:bg-purple-500/15 border border-white/06 hover:border-purple-500/30 text-[11px] font-semibold text-foreground hover:text-purple-300 transition-all cursor-pointer"
+          className="flex items-center gap-1.5 p-2.5 rounded-xl bg-white/[0.02] hover:bg-purple-500/15 border border-white/06 hover:border-purple-500/30 text-xs font-semibold text-foreground hover:text-purple-300 transition-all cursor-pointer"
         >
-          <Target className="w-3 h-3 text-purple-400" />
+          <Target className="w-3.5 h-3.5 text-purple-400" />
           <span>+ Goal</span>
         </Link>
 
         <Link
           href="/meetings"
-          className="flex items-center gap-1.5 p-2 rounded-lg bg-white/[0.02] hover:bg-orange-500/15 border border-white/06 hover:border-orange-500/30 text-[11px] font-semibold text-foreground hover:text-orange-300 transition-all cursor-pointer"
+          className="flex items-center gap-1.5 p-2.5 rounded-xl bg-white/[0.02] hover:bg-orange-500/15 border border-white/06 hover:border-orange-500/30 text-xs font-semibold text-foreground hover:text-orange-300 transition-all cursor-pointer"
         >
-          <Calendar className="w-3 h-3 text-orange-400" />
+          <Calendar className="w-3.5 h-3.5 text-orange-400" />
           <span>+ Meeting</span>
         </Link>
 
         <button
           onClick={() => setQuickAddOpen(true, "expense")}
-          className="flex items-center gap-1.5 p-2 rounded-lg bg-white/[0.02] hover:bg-emerald-500/15 border border-white/06 hover:border-emerald-500/30 text-[11px] font-semibold text-foreground hover:text-emerald-300 transition-all cursor-pointer"
+          className="flex items-center gap-1.5 p-2.5 rounded-xl bg-white/[0.02] hover:bg-emerald-500/15 border border-white/06 hover:border-emerald-500/30 text-xs font-semibold text-foreground hover:text-emerald-300 transition-all cursor-pointer"
         >
-          <DollarSign className="w-3 h-3 text-emerald-400" />
+          <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
           <span>+ Expense</span>
         </button>
 
         <Link
           href="/ai"
-          className="flex items-center gap-1.5 p-2 rounded-lg bg-white/[0.02] hover:bg-cyan-500/15 border border-white/06 hover:border-cyan-500/30 text-[11px] font-semibold text-foreground hover:text-cyan-300 transition-all cursor-pointer col-span-2 sm:col-span-2 lg:col-span-2"
+          className="flex items-center justify-center gap-1.5 p-2.5 rounded-xl bg-white/[0.02] hover:bg-cyan-500/15 border border-white/06 hover:border-cyan-500/30 text-xs font-semibold text-foreground hover:text-cyan-300 transition-all cursor-pointer col-span-2"
         >
-          <Bot className="w-3 h-3 text-cyan-400" />
+          <Bot className="w-3.5 h-3.5 text-cyan-400" />
           <span>AI Assistant</span>
         </Link>
       </div>
     </div>
   );
 
-  const AttendanceEntryPoint = (
-    <div className="glass-card-premium p-3.5 sm:p-4 rounded-2xl border border-white/[0.07] hover:border-[#FFC107]/30 transition-all">
-      <div className="flex items-center justify-between gap-3">
-        <div className="space-y-0.5 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground">
-              ATTENDANCE
-            </span>
-            <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded bg-emerald-500/15 border border-emerald-500/30 text-[9px] font-bold text-emerald-400">
-              <span className="w-1 h-1 rounded-full bg-emerald-400 animate-ping" />
-              Live Presence
-            </span>
-          </div>
-          <p className="text-xs text-foreground font-semibold truncate">
-            Track workdays & team presence
-          </p>
-        </div>
-
-        <Link
-          href="/attendance"
-          className="shrink-0 px-3 py-1.5 rounded-xl bg-white/[0.04] hover:bg-[#FFC107]/15 border border-white/10 hover:border-[#FFC107]/30 text-[11px] font-bold text-[#FFC107] transition-all flex items-center gap-1 cursor-pointer group"
-        >
-          <span>View History</span>
-          <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-        </Link>
-      </div>
-    </div>
-  );
-
   const ImportantTasksSection = (
-    <div className="glass-card-premium p-3.5 sm:p-4 rounded-2xl space-y-2.5">
+    <div className="glass-card-premium p-4 sm:p-5 rounded-2xl space-y-3 border border-white/[0.08]">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
           <CheckSquare className="w-3.5 h-3.5 text-[#FFC107]" />
@@ -475,15 +411,15 @@ export default function Dashboard() {
       </div>
 
       {myOpenTasks.length === 0 ? (
-        <div className="py-4 text-center">
-          <p className="text-xs text-muted-foreground">All tasks clear! You're good to go.</p>
+        <div className="py-6 text-center">
+          <p className="text-xs text-muted-foreground">All priority tasks cleared! You're ready for new objectives.</p>
         </div>
       ) : (
-        <div className="space-y-1.5">
-          {myOpenTasks.slice(0, 3).map((task) => (
+        <div className="space-y-2">
+          {myOpenTasks.slice(0, 4).map((task) => (
             <div
               key={task.id}
-              className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.02] hover:bg-white/[0.04] border border-white/[0.05] transition-all group"
+              className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] hover:bg-white/[0.04] border border-white/[0.05] transition-all group"
             >
               <div className="flex items-center gap-2.5 min-w-0 flex-1 pr-2">
                 <button
@@ -518,19 +454,8 @@ export default function Dashboard() {
     </div>
   );
 
-  const heroCardElement = (
-    <WorkdayCard
-      greeting={{
-        title: greetingObj.title,
-        role: userRole,
-        contextualLine: contextualLine,
-        onAddClick: () => setQuickAddOpen(true, "task"),
-      }}
-    />
-  );
-
   return (
-    <div className="px-3.5 sm:px-6 lg:px-8 py-4 sm:py-5 max-w-[1560px] w-full mx-auto space-y-4">
+    <div className="px-3.5 sm:px-6 lg:px-8 py-4 sm:py-6 max-w-[1560px] w-full mx-auto space-y-4">
       <motion.div
         initial="hidden"
         animate="show"
@@ -539,11 +464,16 @@ export default function Dashboard() {
       >
         {/* ──────────────────────────────────────────────
             MOBILE LAYOUT (< 1024px)
-            Order: Hero Workday -> Focus -> 2x2 Stats -> Office -> Tasks -> Attendance Entry -> Actions
+            Natural flow without attendance gaps:
+            Welcome Banner -> Focus Card -> Quick Stats (2x2) -> Tasks -> Quick Actions
         ────────────────────────────────────────────── */}
-        <div className="lg:hidden space-y-3">
+        <div className="lg:hidden space-y-3.5">
           <motion.div variants={fadeUp}>
-            {heroCardElement}
+            <WelcomeBanner
+              currentUser={currentUser}
+              contextualLine={contextualLine}
+              onAddTask={() => setQuickAddOpen(true, "task")}
+            />
           </motion.div>
 
           <motion.div variants={fadeUp}>
@@ -555,15 +485,7 @@ export default function Dashboard() {
           </motion.div>
 
           <motion.div variants={fadeUp}>
-            <OfficePresenceCard />
-          </motion.div>
-
-          <motion.div variants={fadeUp}>
             {ImportantTasksSection}
-          </motion.div>
-
-          <motion.div variants={fadeUp}>
-            {AttendanceEntryPoint}
           </motion.div>
 
           <motion.div variants={fadeUp}>
@@ -573,13 +495,19 @@ export default function Dashboard() {
 
         {/* ──────────────────────────────────────────────
             DESKTOP LAYOUT (>= 1024px)
-            2-Column balanced grid utilizing available screen space
+            2-Column balanced executive grid:
+            Left (7 cols): WelcomeBanner -> FocusCard -> ImportantTasksSection
+            Right (5 cols): QuickStatsGrid -> QuickActionsSection
         ────────────────────────────────────────────── */}
         <div className="hidden lg:grid lg:grid-cols-12 gap-4 items-start">
           {/* LEFT / MAIN COLUMN (7 cols) */}
-          <div className="lg:col-span-7 space-y-3.5">
+          <div className="lg:col-span-7 space-y-4">
             <motion.div variants={fadeUp}>
-              {heroCardElement}
+              <WelcomeBanner
+                currentUser={currentUser}
+                contextualLine={contextualLine}
+                onAddTask={() => setQuickAddOpen(true, "task")}
+              />
             </motion.div>
 
             <motion.div variants={fadeUp}>
@@ -589,20 +517,12 @@ export default function Dashboard() {
             <motion.div variants={fadeUp}>
               {ImportantTasksSection}
             </motion.div>
-
-            <motion.div variants={fadeUp}>
-              {AttendanceEntryPoint}
-            </motion.div>
           </div>
 
           {/* RIGHT / SECONDARY COLUMN (5 cols) */}
-          <div className="lg:col-span-5 space-y-3.5">
+          <div className="lg:col-span-5 space-y-4">
             <motion.div variants={fadeUp}>
               {QuickStatsGrid}
-            </motion.div>
-
-            <motion.div variants={fadeUp}>
-              <OfficePresenceCard />
             </motion.div>
 
             <motion.div variants={fadeUp}>
@@ -611,13 +531,6 @@ export default function Dashboard() {
           </div>
         </div>
       </motion.div>
-
-      {/* Attendance History Modal (Fallback) */}
-      <AnimatePresence>
-        {historyModalOpen && (
-          <AttendanceHistoryModal onClose={() => setHistoryModalOpen(false)} />
-        )}
-      </AnimatePresence>
     </div>
   );
 }

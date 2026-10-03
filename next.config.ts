@@ -11,6 +11,20 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      {
+        source: '/attendance',
+        destination: '/',
+        permanent: false,
+      },
+      {
+        source: '/roadmap',
+        destination: '/goals',
+        permanent: false,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

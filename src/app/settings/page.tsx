@@ -110,7 +110,7 @@ export default function SettingsPage() {
             <div className="px-5 py-4 space-y-3">
               <p className="text-xs text-muted-foreground">Select who is using this device to route notifications and log tasks correctly.</p>
               <div className="grid grid-cols-3 gap-2">
-                {(["Sourabh", "Asher", "Subin"] as const).map((user) => {
+                {(["Sourabh", "Asher"] as const).map((user) => {
                   const active = currentUser === user;
                   return (
                     <button

@@ -45,7 +45,7 @@ const TYPES = ["Car Wash", "Mechanic", "Detailing Studio", "Multi-Service", "Tyr
 const INTEREST_LEVELS = ["High", "Medium", "Low", "Unknown"];
 const TIE_LEVELS = ["Basic", "Standard", "Premium", "Multi-Service"];
 const FOLLOW_UP_METHODS = ["Call", "WhatsApp", "Visit", "Email"];
-const PERFORMED_BY = ["Sourabh", "Asher", "Subin"];
+const PERFORMED_BY = ["Sourabh", "Asher"];
 
 // Helper to determine file icon
 const getFileIcon = (type: Document['file_type']) => {

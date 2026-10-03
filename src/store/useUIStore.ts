@@ -8,14 +8,14 @@ interface UIStore {
   quickAddTab: "task" | "expense" | "idea";
   theme: "dark" | "light";
   aiBrief: string | null;
-  currentUser: "Sourabh" | "Asher" | "Subin";
+  currentUser: "Sourabh" | "Asher";
   toggleSidebar: () => void;
   setSidebarOpen: (v: boolean) => void;
   setCommandOpen: (v: boolean) => void;
   setQuickAddOpen: (v: boolean, tab?: "task" | "expense" | "idea") => void;
   setTheme: (t: "dark" | "light") => void;
   setAiBrief: (b: string | null) => void;
-  setCurrentUser: (u: "Sourabh" | "Asher" | "Subin") => void;
+  setCurrentUser: (u: "Sourabh" | "Asher") => void;
 }
 
 export const useUIStore = create<UIStore>((set) => ({

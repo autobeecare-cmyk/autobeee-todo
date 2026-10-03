@@ -25,7 +25,7 @@ serve(async (_req) => {
   const meetings = await meetingsRes.json()
 
   for (const meeting of meetings ?? []) {
-    const attendees = meeting.attendees?.length > 0 ? meeting.attendees : ['Sourabh', 'Asher', 'Subin']
+    const attendees = meeting.attendees?.length > 0 ? meeting.attendees : ['Sourabh', 'Asher']
     const time = new Date(meeting.scheduled_at).toLocaleTimeString('en-IN', {
       hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata'
     })

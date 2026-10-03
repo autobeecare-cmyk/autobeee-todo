@@ -5,10 +5,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Bell,
   X,
-  MapPin,
-  LogOut,
-  Clock,
-  AlertCircle,
   DollarSign,
   Calendar,
   CheckSquare,
@@ -33,14 +29,6 @@ export function NotificationToast() {
 
   const getIcon = (type: string) => {
     switch (type) {
-      case "check_in":
-        return <MapPin className="w-4 h-4" />;
-      case "check_out":
-        return <LogOut className="w-4 h-4" />;
-      case "auto_check_out":
-        return <Clock className="w-4 h-4" />;
-      case "check_in_reminder":
-        return <AlertCircle className="w-4 h-4" />;
       case "settlement":
       case "expense":
         return <DollarSign className="w-4 h-4" />;

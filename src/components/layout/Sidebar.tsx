@@ -7,17 +7,15 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, CheckSquare, Target, Lightbulb,
   DollarSign, Bot, BarChart3, Settings, ChevronLeft,
-  ChevronRight, Calendar, Handshake, FolderLock, TrendingUp, Clock
+  ChevronRight, Calendar, Handshake, FolderLock
 } from "lucide-react";
 import { useUIStore } from "@/store/useUIStore";
 import { cn } from "@/lib/utils";
 
 const NAV = [
   { href: "/",          label: "Dashboard",    icon: LayoutDashboard },
-  { href: "/attendance", label: "Attendance",   icon: Clock },
   { href: "/tasks",     label: "Tasks",         icon: CheckSquare },
   { href: "/goals",     label: "Goals",         icon: Target },
-  { href: "/roadmap",   label: "Roadmap",       icon: TrendingUp },
   { href: "/ideas",     label: "Ideas Vault",   icon: Lightbulb },
   { href: "/meetings",  label: "Meetings",      icon: Calendar },
   { href: "/partners",  label: "Partners",      icon: Handshake },

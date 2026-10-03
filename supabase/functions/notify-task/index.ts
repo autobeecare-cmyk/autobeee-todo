@@ -24,7 +24,7 @@ serve(async (req) => {
 
     let title = ''
     let body = ''
-    const allUsers = ['Sourabh', 'Asher', 'Subin']
+    const allUsers = ['Sourabh', 'Asher']
 
     // Determine who to notify
     const assignee = task.assignee || 'All'

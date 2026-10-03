@@ -17,7 +17,7 @@ import type {
   SplitDetail,
 } from "@/lib/types";
 
-const ALL_FOUNDERS: FounderName[] = ["Sourabh", "Asher", "Subin"];
+const ALL_FOUNDERS: FounderName[] = ["Sourabh", "Asher"];
 
 const EXP_CATEGORIES: ExpenseCategory[] = [
   "fuel", "travel", "marketing", "food", "meetings",
@@ -45,19 +45,17 @@ export function SharedExpenseModal({
   // Extended Shared Expense state
   const [expenseType, setExpenseType] = useState<ExpenseType>("shared_founder");
   const [splitMethod, setSplitMethod] = useState<SplitMethod>("equal");
-  const [selectedFounders, setSelectedFounders] = useState<FounderName[]>(["Sourabh", "Asher", "Subin"]);
+  const [selectedFounders, setSelectedFounders] = useState<FounderName[]>(["Sourabh", "Asher"]);
 
   // Custom percentages & amounts
   const [percentages, setPercentages] = useState<Record<FounderName, string>>({
-    Sourabh: "33.33",
-    Asher: "33.33",
-    Subin: "33.34",
+    Sourabh: "50",
+    Asher: "50",
   });
 
   const [customAmounts, setCustomAmounts] = useState<Record<FounderName, string>>({
     Sourabh: "",
     Asher: "",
-    Subin: "",
   });
 
   const [saving, setSaving] = useState(false);
@@ -285,8 +283,7 @@ export function SharedExpenseModal({
             >
               <option value="Sourabh">Sourabh</option>
               <option value="Asher">Asher</option>
-              <option value="Subin">Subin</option>
-              <option value="Company Account">Company Account</option>
+                            <option value="Company Account">Company Account</option>
             </select>
           </div>
 

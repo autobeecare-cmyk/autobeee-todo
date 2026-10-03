@@ -101,7 +101,7 @@ export function QuickAdd() {
     { id: "idea" as const, label: "Idea", icon: Lightbulb },
   ];
 
-  const PERSONS: Person[] = ["Sourabh", "Asher", "Subin", "All"];
+  const PERSONS: Person[] = ["Sourabh", "Asher", "All"];
   const PRIORITIES: { value: Priority; label: string; color: string }[] = [
     { value: "urgent", label: "🔴 Urgent", color: "#ef4444" },
     { value: "high", label: "🟠 High", color: "#f97316" },

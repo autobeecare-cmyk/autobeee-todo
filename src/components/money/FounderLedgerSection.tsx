@@ -23,12 +23,6 @@ const FOUNDER_COLORS: Record<FounderName, { bg: string; text: string; bar: strin
     bar: "bg-gradient-to-r from-[#3B82F6] to-[#60A5FA]",
     border: "border-[#3B82F6]/30",
   },
-  Subin: {
-    bg: "bg-[#10B981]/10",
-    text: "text-[#34D399]",
-    bar: "bg-gradient-to-r from-[#10B981] to-[#34D399]",
-    border: "border-[#10B981]/30",
-  },
 };
 
 export function FounderLedgerSection() {
@@ -184,7 +178,7 @@ export function FounderLedgerSection() {
                 Founder Settlement
               </h3>
               <p className="text-[10px] text-muted-foreground">
-                Equal split baseline: ₹{summary.equalSharePerFounder.toLocaleString("en-IN")} / founder
+                Company Responsibility: Sourabh ₹13,187 (33.3%) · Asher ₹26,375 (66.7%)
               </p>
             </div>
           </div>
@@ -194,7 +188,7 @@ export function FounderLedgerSection() {
         </div>
 
         {/* Founder Settlement Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 items-start">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
           {ledgers.map((l) => {
             const isOwed = l.netBalance > 0;
             const isOwes = l.netBalance < 0;

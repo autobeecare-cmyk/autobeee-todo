@@ -75,7 +75,7 @@ import type {
   IncomePaymentMethod,
 } from "@/lib/types";
 
-const PERSONS: Person[] = ["Sourabh", "Asher", "Subin"];
+const PERSONS: Person[] = ["Sourabh", "Asher"];
 const EXP_CATEGORIES: ExpenseCategory[] = [
   "equipment",
   "operations",

@@ -22,7 +22,7 @@ const CATEGORIES = [
   "Operations", "Research", "Partner Docs", "General"
 ] as const;
 
-const PERFORMED_BY = ["Sourabh", "Asher", "Subin"] as const;
+const PERFORMED_BY = ["Sourabh", "Asher"] as const;
 
 // Helper to determine file icon
 const getFileIcon = (type: Document['file_type']) => {

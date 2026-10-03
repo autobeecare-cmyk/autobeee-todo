@@ -8,7 +8,7 @@ export async function POST(req: Request) {
     const {
       title,
       body: content,
-      recipient, // 'All' | 'Sourabh' | 'Asher' | 'Subin'
+      recipient, // 'All' | 'Sourabh' | 'Asher'
       actor,
       type = 'system',
       entityId,
@@ -34,7 +34,7 @@ export async function POST(req: Request) {
     }
 
     // Determine target users
-    const ALL_FOUNDERS = ['Sourabh', 'Asher', 'Subin']
+    const ALL_FOUNDERS = ['Sourabh', 'Asher']
     let toUsers: string[] = []
 
     if (!recipient || recipient === 'All' || recipient === 'all') {
@@ -45,28 +45,18 @@ export async function POST(req: Request) {
     }
 
     // Determine appropriate Edge Function endpoint based on notification type
-    let endpoint = `${supabaseUrl}/functions/v1/notify-attendance`
+    let endpoint = `${supabaseUrl}/functions/v1/notify-task`
     let payload: any = {
-      type,
-      founderName: actor,
-      title,
-      body: content,
-      toUsers,
-      workday: entityId ? { id: entityId } : undefined,
+      type: 'created',
+      task: {
+        id: entityId || `task-${Date.now()}`,
+        title: content || title,
+        assignee: recipient === 'All' ? undefined : recipient,
+        priority: priority || 'normal',
+      },
     }
 
-    if (type === 'task' || type === 'task_reminder') {
-      endpoint = `${supabaseUrl}/functions/v1/notify-task`
-      payload = {
-        type: 'created',
-        task: {
-          id: entityId || `task-${Date.now()}`,
-          title: content || title,
-          assignee: recipient === 'All' ? undefined : recipient,
-          priority: priority || 'normal',
-        },
-      }
-    } else if (type === 'meeting' || type === 'meeting_alert' || type === 'meeting_change') {
+    if (type === 'meeting' || type === 'meeting_alert' || type === 'meeting_change') {
       endpoint = `${supabaseUrl}/functions/v1/notify-meeting`
       payload = {
         type: type === 'meeting_alert' ? 'reminder' : 'updated',

@@ -34,10 +34,9 @@ function buildContext(tasks: Task[], goals: Goal[], expenses: Expense[]) {
   const monthTotal = monthExpenses.reduce((s, e) => s + e.amount, 0);
 
   return `
-You are a brilliant, concise business and productivity assistant for Autobee, a 3-person startup team consisting of:
+You are a brilliant, concise business and productivity assistant for Autobee, a 2-person startup team consisting of:
 - Sourabh (color: #FFC107, initial: S)
 - Asher (color: #3B82F6, initial: A)
-- Subin (color: #10B981, initial: Su)
 
 Current date: ${format(now, "d MMMM yyyy")}
 
@@ -54,7 +53,7 @@ RESPONSE INSTRUCTIONS:
 - Limit responses to 2-3 short paragraphs or bullet points.
 - Do not use introductory fluff or conversational filler.
 - Focus on startup momentum and bottlenecks.
-- Refer to Sourabh, Asher, or Subin directly.
+- Refer to Sourabh or Asher directly.
 `.trim();
 }
 

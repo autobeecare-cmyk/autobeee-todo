@@ -16,7 +16,7 @@ import type { Meeting, Person, Priority, Task } from "@/lib/types";
 import { fadeUp, staggerContainer } from "@/lib/animations";
 
 
-const PERSONS: Person[] = ["Sourabh", "Asher", "Subin"];
+const PERSONS: Person[] = ["Sourabh", "Asher"];
 const DURATIONS = [15, 30, 45, 60, 90];
 
 // Removed local CONTAINER/ITEM variants to use global animations from animations.ts
@@ -415,7 +415,7 @@ function MeetingCard({ meeting, onEdit, tasks }: { meeting: Meeting; onEdit: (me
                 style={{ background: att === "Sourabh" ? "#FFC107" : att === "Asher" ? "#3B82F6" : "#10B981" }}
                 title={att}
               >
-                {att === "Subin" ? "Su" : att.charAt(0)}
+                {att.charAt(0)}
               </div>
             ))}
           </div>

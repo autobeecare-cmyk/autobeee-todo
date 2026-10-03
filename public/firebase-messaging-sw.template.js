@@ -25,8 +25,6 @@ messaging.onBackgroundMessage((payload) => {
   const isHighPriority =
     data.priority === 'high' ||
     data.type === 'meeting_alert' ||
-    data.type === 'auto_check_out' ||
-    data.type === 'check_in_reminder' ||
     data.type === 'task_reminder'
 
   const notificationOptions = {
@@ -51,14 +49,6 @@ self.addEventListener('notificationclick', (event) => {
 
   if (!data.url) {
     switch (data.type) {
-      case 'check_in':
-      case 'check_out':
-      case 'auto_leave':
-      case 'auto_check_out':
-      case 'check_in_reminder':
-      case 'attendance':
-        url = '/'
-        break
       case 'task':
       case 'task_reminder':
         url = '/tasks'
@@ -116,8 +106,8 @@ function getActions(type) {
       return [
         { action: 'view', title: '✅ View Tasks' },
       ]
-    case 'check_in':
-    case 'check_out':
+    case 'none':
+    case 'none_out':
     case 'auto_check_out':
     case 'check_in_reminder':
     case 'auto_leave':

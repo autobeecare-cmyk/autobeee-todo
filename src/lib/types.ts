@@ -1,5 +1,6 @@
 // src/lib/types.ts
-export type Person = "Sourabh" | "Asher" | "Subin" | "All";
+export type Person = "Sourabh" | "Asher" | "All";
+export type FounderName = "Sourabh" | "Asher";
 export type Priority = "urgent" | "high" | "medium" | "low";
 export type TaskStatus = "todo" | "doing" | "done";
 export type GoalCategory = "startup" | "growth" | "learning" | "product" | "finance";
@@ -41,8 +42,6 @@ export interface Task {
   comments: TaskComment[];
   repeat: RepeatInterval;
   meetingId?: string;
-  milestoneId?: string;
-  epicId?: string;
 }
 
 export interface Goal {
@@ -218,182 +217,6 @@ export interface Document {
   updated_at: string;
 }
 
-export interface RoadmapPhase {
-  id: string;
-  title: string;
-  description?: string;
-  owner: Person;
-  priority: Priority;
-  startDate?: string;
-  targetDate?: string;
-  completionPercentage: number;
-  status: "locked" | "upcoming" | "active" | "completed";
-  notes?: string;
-  dependencies: string[];
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface RoadmapObjective {
-  id: string;
-  phaseId: string;
-  goalId?: string;
-  title: string;
-  description?: string;
-  owner: Person;
-  priority: Priority;
-  startDate?: string;
-  targetDate?: string;
-  completionPercentage: number;
-  status: "upcoming" | "active" | "completed";
-  notes?: string;
-  dependencies: string[];
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface KeyResult {
-  id: string;
-  goalId: string;
-  title: string;
-  description?: string;
-  targetValue: number;
-  currentValue: number;
-  completionPercentage: number;
-  status: "active" | "completed" | "paused";
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface RoadmapMilestone {
-  id: string;
-  objectiveId: string;
-  keyResultId?: string;
-  title: string;
-  description?: string;
-  owner: Person;
-  priority: Priority;
-  startDate?: string;
-  targetDate?: string;
-  completionPercentage: number;
-  status: "upcoming" | "active" | "completed";
-  notes?: string;
-  dependencies: string[];
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface RoadmapEpic {
-  id: string;
-  milestoneId: string;
-  title: string;
-  description?: string;
-  owner: Person;
-  priority: Priority;
-  startDate?: string;
-  targetDate?: string;
-  completionPercentage: number;
-  status: "upcoming" | "active" | "completed";
-  notes?: string;
-  dependencies: string[];
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface RoadmapHiring {
-  id: string;
-  phaseId: string;
-  role: string;
-  department?: string;
-  owner: Person;
-  budget: number;
-  status: "upcoming" | "open" | "filled";
-  startDate?: string;
-  targetDate?: string;
-  notes?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface RoadmapMarketing {
-  id: string;
-  phaseId: string;
-  campaignName: string;
-  status: "upcoming" | "active" | "completed";
-  budget: number;
-  expectedOutcome?: string;
-  deadline?: string;
-  completionPercentage: number;
-  owner: Person;
-  notes?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface RoadmapFinance {
-  id: string;
-  phaseId: string;
-  monthName: string;
-  projectedBookings: number;
-  projectedRevenue: number;
-  actualRevenue: number;
-  monthlyTarget: number;
-  notes?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface RoadmapRisk {
-  id: string;
-  title: string;
-  description?: string;
-  probability: "High" | "Medium" | "Low";
-  impact: "Critical" | "High" | "Medium" | "Low";
-  owner: Person;
-  mitigation?: string;
-  status: "open" | "resolved" | "critical";
-  milestoneId?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// ── Workday & Attendance Types ──
-export type FounderName = "Sourabh" | "Asher" | "Subin";
-export type WorkdayStatus = "working" | "completed" | "leave" | "on_break";
-export type WorkdayEventType = "check_in" | "check_out" | "auto_leave" | "auto_check_out" | "check_in_reminder" | "break_start" | "break_end";
-
-export interface Workday {
-  id: string;
-  founderName: FounderName;
-  workDate: string; // YYYY-MM-DD in IST
-  checkInAt: string;
-  checkOutAt?: string | null;
-  status: WorkdayStatus;
-  progressNotes?: string | null;
-  blockerNotes?: string | null;
-  tomorrowNotes?: string | null;
-  checkInLatitude?: number | null;
-  checkInLongitude?: number | null;
-  checkInAccuracy?: number | null;
-  checkInLocationTimestamp?: string | null;
-  checkInMethod?: string | null;
-  checkOutSource?: string | null;
-  // Break state — persisted server-side, authoritative across all devices
-  totalBreakMs: number; // Accumulated completed break duration in milliseconds
-  breakStartedAt?: string | null; // ISO timestamp when current break started; null if not on break
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface WorkdayEvent {
-  id: string;
-  workdayId: string;
-  founderName: FounderName;
-  eventType: WorkdayEventType;
-  timestamp: string;
-  metadata?: Record<string, any>;
-}
-
 // ── Shared Expense & Settlement Types ──
 export type ExpenseType = "company" | "shared_founder" | "founder_paid_company" | "founder_specific";
 export type SplitMethod = "equal" | "percentage" | "custom";
@@ -444,11 +267,6 @@ export interface PairwiseDebt {
 
 // ── Notification Types ──
 export type NotificationType =
-  | "check_in"
-  | "check_out"
-  | "auto_leave"
-  | "auto_check_out"
-  | "check_in_reminder"
   | "settlement"
   | "expense"
   | "task"

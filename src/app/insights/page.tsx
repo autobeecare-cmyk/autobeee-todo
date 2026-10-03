@@ -26,7 +26,7 @@ import { SectionHeader } from "@/components/common/SectionHeader";
 import { AutoBeeBadge } from "@/components/common/AutoBeeBadge";
 
 const PERSON_COLOR: Record<string, string> = {
-  Sourabh: "#FFC107", Asher: "#6366f1", Subin: "#22c55e",
+  Sourabh: "#FFC107", Asher: "#6366f1",
 };
 
 const PRIORITY_BADGE_STYLE: Record<string, string> = {
@@ -129,7 +129,7 @@ export default function InsightsPage() {
 
   // Workload balance
   const workloadData = useMemo(() => {
-    const map: Record<string, number> = { Sourabh: 0, Asher: 0, Subin: 0 };
+    const map: Record<string, number> = { Sourabh: 0, Asher: 0 };
     tasks.filter(t => t.status !== "done").forEach(t => { map[t.assignee] = (map[t.assignee] ?? 0) + 1; });
     const entries = Object.entries(map).map(([name, count]) => ({ name, count }));
     const totalCount = entries.reduce((s, e) => s + e.count, 0);
@@ -141,7 +141,7 @@ export default function InsightsPage() {
 
   // Member stats
   const memberStats = useMemo(() => {
-    const people = ["Sourabh", "Asher", "Subin"];
+    const people = ["Sourabh", "Asher"];
     return people.map(person => {
       const myTasks = tasks.filter(t => t.assignee === person);
       const done = myTasks.filter(t => t.status === "done").length;
@@ -394,7 +394,7 @@ export default function InsightsPage() {
                   <div key={person} className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-1.5">
                       <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-[#111]" style={{ background: PERSON_COLOR[person] }}>
-                        {person === "Subin" ? "Su" : person.charAt(0)}
+                        {person.charAt(0)}
                       </div>
                       <span className="text-muted-foreground">{person}</span>
                     </div>
@@ -428,7 +428,7 @@ export default function InsightsPage() {
                       <p className="text-[9px] text-red-400 font-medium mt-0.5">{days} day{days !== 1 ? "s" : ""} overdue</p>
                     </div>
                     <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-[#111]" style={{ background: PERSON_COLOR[t.assignee] }}>
-                      {t.assignee === "Subin" ? "Su" : t.assignee.charAt(0)}
+                      {t.assignee.charAt(0)}
                     </div>
                   </div>
                 );
@@ -462,7 +462,7 @@ export default function InsightsPage() {
                             {t.priority}
                           </span>
                           <div className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold text-[#111]" style={{ background: PERSON_COLOR[t.assignee] }}>
-                            {t.assignee === "Subin" ? "Su" : t.assignee.charAt(0)}
+                            {t.assignee.charAt(0)}
                           </div>
                         </div>
                       </div>
@@ -492,7 +492,7 @@ export default function InsightsPage() {
             {activities.map(act => {
               // Attempt to parse who initiated from description
               const matchWho = act.description.split(" ")[0];
-              const nameKey = ["Sourabh", "Asher", "Subin"].includes(matchWho) ? matchWho : "Sourabh";
+              const nameKey = ["Sourabh", "Asher"].includes(matchWho) ? matchWho : "Sourabh";
               const avatarColor = PERSON_COLOR[nameKey] || "#FFC107";
               return (
                 <motion.div 
@@ -505,7 +505,7 @@ export default function InsightsPage() {
                       className="w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-bold text-[#111]"
                       style={{ background: avatarColor }}
                     >
-                      {nameKey === "Subin" ? "Su" : nameKey.charAt(0)}
+                      {nameKey.charAt(0)}
                     </div>
                     <div>
                       <p className="text-xs font-medium text-foreground/90">{act.description}</p>

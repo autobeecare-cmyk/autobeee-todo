@@ -43,7 +43,7 @@ serve(async (_req) => {
     }
   }
 
-  const ALL_FOUNDERS = ['Sourabh', 'Asher', 'Subin']
+  const ALL_FOUNDERS = ['Sourabh', 'Asher']
   let sentCount = 0
 
   // Helper to send task reminder to a specific founder

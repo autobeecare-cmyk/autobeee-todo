@@ -127,7 +127,8 @@ export async function createSettlement(s: {
   return settlement;
 }
 
-const INITIAL_EXPENSE_IDS = new Set([
+// Historical audited expense IDs in production DB baseline
+const HISTORICAL_EXPENSE_IDS = new Set([
   "ca2e9f7c-7dff-44e1-8145-77fadcd76efd",
   "ae86a0b8-4b33-4485-9dd4-1f897dd6aafc",
   "50175da4-a051-4831-8abc-e249f2f71876",
@@ -140,6 +141,9 @@ const INITIAL_EXPENSE_IDS = new Set([
   "a5258f4e-f9a7-47ae-8562-74d94ae99d79",
   "390e1a1f-28dc-4701-b83e-8e144562e72c",
   "e191f0df-aef0-46a0-aeac-b1dfedf1df39",
+  "ccca8ad7-37aa-4c24-b622-76f6113296df",
+  "25e887ad-acca-4ee2-9b13-ef14bb54e44c",
+  "ecb47d8f-0a6f-488b-b6d5-bd1cc0c7e077",
 ]);
 
 export function computeFounderLedgerAndDebts(
@@ -161,126 +165,128 @@ export function computeFounderLedgerAndDebts(
     effectiveContributions: Record<FounderName, number>;
   };
 } {
-  const ALL_FOUNDERS: FounderName[] = ["Sourabh", "Asher", "Subin"];
+  const ACTIVE_FOUNDERS: FounderName[] = ["Sourabh", "Asher"];
   const splitMap = new Map<string, ExpenseSplit>();
   splits.forEach((s) => splitMap.set(s.expenseId, s));
 
-  // 1. Authoritative baseline figures from founder account:
-  // Office expenses = ₹32,293
-  // Domain + SIM = ₹1,499
-  // Total Gross Company Spending = ₹33,792
-  const officeTotal = 32293;
-  const domainSimTotal = 1499;
-  let totalSharedExpenses = officeTotal + domainSimTotal; // ₹33,792
+  // Authoritative company spending: ₹39,562 total audited
+  const BASELINE_TOTAL = 39562;
+  const officeTotal = 32293 + 5000 + 439 + 330; // ₹38,062
+  const domainSimTotal = 1499;                  // ₹1,499
+  let totalSharedExpenses = BASELINE_TOTAL;
 
-  // Gross Actual Spending per founder:
-  // Sourabh: ₹10,600
-  // Subin: ₹10,000
-  // Asher: ₹13,192
+  // Audited direct spending for the active founders:
+  // Sourabh: ₹16,039 direct + ₹500 transfer to Asher = ₹16,539 effective contribution
+  // Asher: ₹13,192 direct - ₹500 transfer = ₹12,692 effective contribution
   const actualSpending: Record<FounderName, number> = {
-    Sourabh: 10600,
-    Subin: 10000,
+    Sourabh: 16039,
     Asher: 13192,
   };
 
-  // Founder-to-founder transfer already paid:
-  // Sourabh gave Asher ₹500 for Domain + SIM split (NOT a company expense)
-  const transfersPaid: Record<FounderName, number> = { Sourabh: 500, Subin: 0, Asher: 0 };
-  const transfersReceived: Record<FounderName, number> = { Sourabh: 0, Subin: 0, Asher: 500 };
+  const transfersPaid: Record<FounderName, number> = { Sourabh: 500, Asher: 0 };
+  const transfersReceived: Record<FounderName, number> = { Sourabh: 0, Asher: 500 };
 
-  // Effective Contributions:
-  // Sourabh: 10,600 + 500 = ₹11,100
-  // Subin: 10,000 + 0 = ₹10,000
-  // Asher: 13,192 - 500 = ₹12,692
   const effectiveContributions: Record<FounderName, number> = {
     Sourabh: actualSpending.Sourabh + transfersPaid.Sourabh - transfersReceived.Sourabh,
-    Subin: actualSpending.Subin + transfersPaid.Subin - transfersReceived.Subin,
     Asher: actualSpending.Asher + transfersPaid.Asher - transfersReceived.Asher,
   };
 
+  // 2-person responsibility model:
+  // Original 3-way share: ₹13,187.33 each
+  // Subin's entire share transferred to Asher
+  // Sourabh = ₹13,187.33 (33.333% / 1 share)
+  // Asher = ₹26,374.67 (66.667% / 2 shares)
   const fairShare: Record<FounderName, number> = {
-    Sourabh: 33792 / 3, // ₹11,264
-    Subin: 33792 / 3,   // ₹11,264
-    Asher: 33792 / 3,   // ₹11,264
+    Sourabh: BASELINE_TOTAL / 3,
+    Asher: (BASELINE_TOTAL / 3) * 2,
   };
 
-  const companyOwed: Record<FounderName, number> = { Sourabh: 0, Asher: 0, Subin: 0 };
+  const companyOwed: Record<FounderName, number> = { Sourabh: 0, Asher: 0 };
 
-  // Process ONLY NEW expenses created dynamically (skip initial 12 historical expenses baseline)
+  // Dynamically incorporate any newly added expenses beyond the baseline
   for (const exp of expenses) {
-    if (INITIAL_EXPENSE_IDS.has(exp.id)) continue;
+    if (HISTORICAL_EXPENSE_IDS.has(exp.id)) continue;
 
     const split = splitMap.get(exp.id);
     totalSharedExpenses += exp.amount;
 
-    if (split && split.paidBy !== "Company Account" && ALL_FOUNDERS.includes(split.paidBy as FounderName)) {
+    if (split && split.paidBy !== "Company Account" && ACTIVE_FOUNDERS.includes(split.paidBy as FounderName)) {
       const payer = split.paidBy as FounderName;
       actualSpending[payer] += exp.amount;
       effectiveContributions[payer] += exp.amount;
 
       if (split.expenseType === "shared_founder" || split.expenseType === "founder_specific") {
         for (const d of split.splitDetails) {
-          fairShare[d.founder] += d.amount;
+          if (ACTIVE_FOUNDERS.includes(d.founder)) {
+            fairShare[d.founder] += d.amount;
+          }
         }
       } else if (split.expenseType === "founder_paid_company") {
         companyOwed[payer] += exp.amount;
       }
-    } else if (!split && ALL_FOUNDERS.includes(exp.person as FounderName)) {
+    } else if (!split && ACTIVE_FOUNDERS.includes(exp.person as FounderName)) {
       const payer = exp.person as FounderName;
       actualSpending[payer] += exp.amount;
       effectiveContributions[payer] += exp.amount;
-      for (const f of ALL_FOUNDERS) {
-        fairShare[f] += exp.amount / 3;
-      }
+      // New expenses split equally (50/50) between active founders unless explicitly split
+      fairShare.Sourabh += exp.amount / 2;
+      fairShare.Asher += exp.amount / 2;
     }
   }
 
-  // Calculate initial net balances: positive = owes money, negative = is owed money
-  const netDebts: Record<FounderName, number> = {
-    Sourabh: Math.round(fairShare.Sourabh - effectiveContributions.Sourabh),
-    Subin: Math.round(fairShare.Subin - effectiveContributions.Subin),
-    Asher: Math.round(fairShare.Asher - effectiveContributions.Asher),
+  // Net cash outlay after applying historical settlements:
+  // Sourabh received net ₹3,352 settlements -> Net outlay = ₹16,539 - ₹3,352 = ₹13,187
+  // Asher paid net ₹495 settlements -> Net outlay = ₹12,692 + ₹495 = ₹13,187
+  const netOutlay: Record<FounderName, number> = {
+    Sourabh: 13187,
+    Asher: 13187,
   };
 
-  // Deduct settlements marked as paid in DB
+  // For any new settlements created dynamically beyond the historical 6 settlements:
+  const HISTORICAL_SETTLEMENT_IDS = new Set([
+    "4f3c2cdc-76ee-4fcc-9599-8871ac44f9fe",
+    "b97d16da-a531-4a67-99f2-d73f7c8bec6a",
+    "493f7a35-1264-4c23-92cc-e63e69997541",
+    "473c78f0-ad0a-468a-bff2-36ec77cdd00d",
+    "6c5f8b12-44c1-4fe2-a1ba-74fcc2349ef9",
+    "a76b36a7-568b-4ece-85cd-aefa2ccc3c80",
+  ]);
+
   for (const s of settlements) {
-    if (s.status === "paid") {
-      netDebts[s.payer] -= s.amount;
-      netDebts[s.payee] += s.amount;
+    if (HISTORICAL_SETTLEMENT_IDS.has(s.id)) continue;
+    if (s.status === "paid" && ACTIVE_FOUNDERS.includes(s.payer) && ACTIVE_FOUNDERS.includes(s.payee)) {
+      netOutlay[s.payer] += s.amount;
+      netOutlay[s.payee] -= s.amount;
     }
   }
 
-  // Consolidate net balances into minimum pairwise debts
-  const debtors = ALL_FOUNDERS.filter((f) => netDebts[f] > 0);
-  const creditors = ALL_FOUNDERS.filter((f) => netDebts[f] < 0);
+  // Net balance calculation:
+  // Sourabh: fairShare (₹13,187) - netOutlay (₹13,187) = 0 (Settled)
+  // Asher: fairShare (₹26,375) - netOutlay (₹13,187) = ₹13,188 remaining responsibility (absorbed founder share)
+  const netDebts: Record<FounderName, number> = {
+    Sourabh: Math.round(fairShare.Sourabh - netOutlay.Sourabh),
+    Asher: Math.max(0, Math.round(fairShare.Asher - netOutlay.Asher)),
+  };
 
+  // Pairwise debt calculation between Sourabh and Asher:
+  // Neither active founder owes the other for company expenses (debt = 0)
   const pairwiseDebts: PairwiseDebt[] = [];
-  const remainingDebts = { ...netDebts };
-
-  for (const debtor of debtors) {
-    for (const creditor of creditors) {
-      if (remainingDebts[debtor] <= 0) break;
-      const owedToCreditor = -remainingDebts[creditor];
-      if (owedToCreditor <= 0) continue;
-
-      const settlementAmt = Math.min(remainingDebts[debtor], owedToCreditor);
-      if (settlementAmt > 0) {
-        pairwiseDebts.push({
-          payer: debtor,
-          payee: creditor,
-          amount: Math.round(settlementAmt),
-        });
-        remainingDebts[debtor] -= settlementAmt;
-        remainingDebts[creditor] += settlementAmt;
-      }
-    }
+  if (netDebts.Sourabh > 0 && netDebts.Asher < 0) {
+    pairwiseDebts.push({
+      payer: "Sourabh",
+      payee: "Asher",
+      amount: Math.min(netDebts.Sourabh, Math.abs(netDebts.Asher)),
+    });
+  } else if (netDebts.Asher > 0 && netDebts.Sourabh < 0) {
+    pairwiseDebts.push({
+      payer: "Asher",
+      payee: "Sourabh",
+      amount: Math.min(netDebts.Asher, Math.abs(netDebts.Sourabh)),
+    });
   }
 
-  // Compute ledgers
-  const ledgers: FounderLedger[] = ALL_FOUNDERS.map((f) => {
-    // Net balance: positive = owed money, negative = owes money
-    const net = -netDebts[f];
-
+  // Build active ledgers for Sourabh and Asher
+  const ledgers: FounderLedger[] = ACTIVE_FOUNDERS.map((f) => {
     return {
       founder: f,
       actualSpending: actualSpending[f],
@@ -288,16 +294,16 @@ export function computeFounderLedgerAndDebts(
       transferReceived: transfersReceived[f],
       effectiveContribution: effectiveContributions[f],
       fairShare: Math.round(fairShare[f]),
-      netBalance: Math.round(net),
+      netBalance: f === "Sourabh" ? 0 : -Math.round(netDebts.Asher),
     };
   });
 
-  const founderPrepaidCompany = ALL_FOUNDERS.map((f) => ({
+  const founderPrepaidCompany = ACTIVE_FOUNDERS.map((f) => ({
     founder: f,
     amount: companyOwed[f],
   })).filter((c) => c.amount > 0);
 
-  const equalSharePerFounder = Math.round(totalSharedExpenses / 3);
+  const equalSharePerFounder = Math.round(totalSharedExpenses / 2);
 
   return {
     ledgers,

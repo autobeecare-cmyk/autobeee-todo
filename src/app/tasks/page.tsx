@@ -44,7 +44,7 @@ const PRIORITY_CONFIG = {
   low: { label: "⚪ Low", color: "#6b7280", bg: "rgba(107,114,128,0.12)" },
 };
 
-const PERSONS: Person[] = ["Sourabh", "Asher", "Subin", "All"];
+const PERSONS: Person[] = ["Sourabh", "Asher", "All"];
 
 type ScopeFilter = "my" | "assigned_by_me" | "all";
 type QuickFilter = "all" | "urgent" | "high" | "today" | "upcoming";

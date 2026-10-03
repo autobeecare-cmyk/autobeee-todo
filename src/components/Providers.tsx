@@ -10,8 +10,6 @@ import { useMeetingStore } from "@/store/useMeetingStore";
 import { useIncomeStore } from "@/store/useIncomeStore";
 import { usePartnerStore } from "@/store/usePartnerStore";
 import { useDocumentStore } from "@/store/useDocumentStore";
-import { useRoadmapStore } from "@/store/useRoadmapStore";
-import { useWorkdayStore } from "@/store/useWorkdayStore";
 import { useSettlementStore } from "@/store/useSettlementStore";
 import { useNotificationStore } from "@/store/useNotificationStore";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -29,7 +27,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (typeof window !== "undefined") {
       const storedUser = localStorage.getItem("autobee_current_user");
-      if (storedUser && ["Sourabh", "Asher", "Subin"].includes(storedUser)) {
+      if (storedUser && ["Sourabh", "Asher"].includes(storedUser)) {
         useUIStore.getState().setCurrentUser(storedUser as any);
       }
     }
@@ -46,8 +44,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
       useIncomeStore.getState().subscribeToIncome(),
       usePartnerStore.getState().subscribeToPartners(),
       useDocumentStore.getState().subscribeToDocuments(),
-      useRoadmapStore.getState().subscribeToRoadmapChanges(),
-      useWorkdayStore.getState().initRealtime(),
       useSettlementStore.getState().initRealtime(),
       useNotificationStore.getState().initRealtime(),
     ];
