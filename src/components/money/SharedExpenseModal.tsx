@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { X, DollarSign, AlertCircle, Check, Users } from "lucide-react";
+import { X, AlertCircle, Check, Trash2 } from "lucide-react";
 import { useExpenseStore } from "@/store/useExpenseStore";
 import { useSettlementStore } from "@/store/useSettlementStore";
 import { createExpense, updateExpense, deleteExpense } from "@/lib/supabase/expenses";
-import { createExpenseSplit } from "@/lib/supabase/settlements";
+import { saveExpenseSplit, deleteExpenseSplit } from "@/lib/supabase/settlements";
 import type {
   Expense,
   ExpenseCategory,
@@ -33,6 +33,11 @@ export function SharedExpenseModal({
   expense: Expense | null;
   onClose: () => void;
 }) {
+  const { splits } = useSettlementStore();
+  const existingSplit = useMemo(() => {
+    return expense ? splits.find((s) => s.expenseId === expense.id) : null;
+  }, [expense, splits]);
+
   const [amount, setAmount] = useState(expense?.amount?.toString() ?? "");
   const [purpose, setPurpose] = useState(expense?.purpose ?? "");
   const [category, setCategory] = useState<ExpenseCategory>(expense?.category ?? "operations");
@@ -43,22 +48,43 @@ export function SharedExpenseModal({
   const [method, setMethod] = useState<PaymentMethod>(expense?.paymentMethod ?? "upi");
 
   // Extended Shared Expense state
-  const [expenseType, setExpenseType] = useState<ExpenseType>("shared_founder");
-  const [splitMethod, setSplitMethod] = useState<SplitMethod>("equal");
-  const [selectedFounders, setSelectedFounders] = useState<FounderName[]>(["Sourabh", "Asher"]);
-
-  // Custom percentages & amounts
-  const [percentages, setPercentages] = useState<Record<FounderName, string>>({
-    Sourabh: "50",
-    Asher: "50",
+  const [expenseType, setExpenseType] = useState<ExpenseType>(
+    existingSplit?.expenseType ?? ((expense?.person as string) === "Company Account" ? "company" : "shared_founder")
+  );
+  const [splitMethod, setSplitMethod] = useState<SplitMethod>(
+    existingSplit?.splitMethod ?? "equal"
+  );
+  const [selectedFounders, setSelectedFounders] = useState<FounderName[]>(() => {
+    if (existingSplit?.splitDetails?.length) {
+      const active = existingSplit.splitDetails
+        .map((d) => d.founder)
+        .filter((f): f is FounderName => f === "Sourabh" || f === "Asher");
+      if (active.length > 0) return active;
+    }
+    return ["Sourabh", "Asher"];
   });
 
-  const [customAmounts, setCustomAmounts] = useState<Record<FounderName, string>>({
-    Sourabh: "",
-    Asher: "",
+  // Custom percentages & amounts
+  const [percentages, setPercentages] = useState<Record<FounderName, string>>(() => {
+    if (existingSplit?.splitMethod === "percentage" && existingSplit.splitDetails) {
+      const s = existingSplit.splitDetails.find((d) => d.founder === "Sourabh")?.percentage?.toString() ?? "50";
+      const a = existingSplit.splitDetails.find((d) => d.founder === "Asher")?.percentage?.toString() ?? "50";
+      return { Sourabh: s, Asher: a };
+    }
+    return { Sourabh: "50", Asher: "50" };
+  });
+
+  const [customAmounts, setCustomAmounts] = useState<Record<FounderName, string>>(() => {
+    if (existingSplit?.splitDetails) {
+      const s = existingSplit.splitDetails.find((d) => d.founder === "Sourabh")?.amount?.toString() ?? "";
+      const a = existingSplit.splitDetails.find((d) => d.founder === "Asher")?.amount?.toString() ?? "";
+      return { Sourabh: s, Asher: a };
+    }
+    return { Sourabh: "", Asher: "" };
   });
 
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Compute calculated split breakdown
@@ -132,7 +158,7 @@ export function SharedExpenseModal({
       // Create or Update Expense
       const expData = {
         amount: numAmount,
-        purpose,
+        purpose: purpose.trim(),
         category,
         person: paidBy as any,
         date,
@@ -147,27 +173,61 @@ export function SharedExpenseModal({
         savedExpense = await createExpense(expData);
       }
 
-      // Create Expense Split entry if shared or founder paid
+      // Upsert Expense Split entry if shared or founder paid
       if (expenseType !== "company") {
-        await createExpenseSplit({
+        await saveExpenseSplit({
           expenseId: savedExpense.id,
           expenseType,
           paidBy,
           splitMethod,
           splitDetails: computedSplitDetails,
         });
+      } else if (expense) {
+        // If switched to company account, delete any stale split
+        await deleteExpenseSplit(savedExpense.id);
       }
 
       // Refresh stores
-      await useExpenseStore.getState().fetchExpenses();
-      await useSettlementStore.getState().fetchSplitsAndSettlements();
+      await Promise.all([
+        useExpenseStore.getState().fetchExpenses(),
+        useSettlementStore.getState().fetchSplitsAndSettlements(),
+      ]);
 
       setSaving(false);
       onClose();
     } catch (err: any) {
-      console.error("Save expense error:", err);
-      setErrorMsg(err.message || "Failed to save expense.");
+      const detailedError =
+        err?.message ||
+        err?.details ||
+        err?.error_description ||
+        (typeof err === "object" ? JSON.stringify(err) : String(err));
+      console.error("Save expense error:", detailedError, err);
+      setErrorMsg(detailedError || "Failed to save expense.");
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!expense) return;
+    setErrorMsg(null);
+    setDeleting(true);
+    try {
+      await deleteExpenseSplit(expense.id);
+      await deleteExpense(expense.id);
+      await Promise.all([
+        useExpenseStore.getState().fetchExpenses(),
+        useSettlementStore.getState().fetchSplitsAndSettlements(),
+      ]);
+      setDeleting(false);
+      onClose();
+    } catch (err: any) {
+      const detailedError =
+        err?.message ||
+        err?.details ||
+        (typeof err === "object" ? JSON.stringify(err) : String(err));
+      console.error("Delete expense error:", detailedError);
+      setErrorMsg(detailedError || "Failed to delete expense.");
+      setDeleting(false);
     }
   };
 
@@ -260,7 +320,7 @@ export function SharedExpenseModal({
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             placeholder="0"
-            className="w-full pl-8 pr-4 py-3 rounded-xl bg-white/5 border border-white/10 text-xl font-bold outline-none focus:border-[#FFC107]/50 text-foreground"
+            className="w-full pl-8 pr-4 py-3 rounded-xl bg-white/5 border border-white/10 text-xl font-bold outline-none focus:border-[#FFC107]/50 text-foreground font-mono"
           />
         </div>
 
@@ -283,7 +343,7 @@ export function SharedExpenseModal({
             >
               <option value="Sourabh">Sourabh</option>
               <option value="Asher">Asher</option>
-                            <option value="Company Account">Company Account</option>
+              <option value="Company Account">Company Account</option>
             </select>
           </div>
 
@@ -376,6 +436,44 @@ export function SharedExpenseModal({
               })}
             </div>
 
+            {/* If percentage: custom percentage inputs */}
+            {splitMethod === "percentage" && (
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                {selectedFounders.map((f) => (
+                  <div key={f} className="flex items-center gap-1.5 bg-black/20 p-2 rounded-xl border border-white/5">
+                    <span className="text-xs text-muted-foreground font-medium">{f}:</span>
+                    <input
+                      type="number"
+                      value={percentages[f] || ""}
+                      onChange={(e) => setPercentages({ ...percentages, [f]: e.target.value })}
+                      className="w-full bg-white/5 rounded px-2 py-1 text-xs text-right font-mono text-foreground outline-none"
+                      placeholder="50"
+                    />
+                    <span className="text-xs text-muted-foreground">%</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* If custom: custom amount inputs */}
+            {splitMethod === "custom" && (
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                {selectedFounders.map((f) => (
+                  <div key={f} className="flex items-center gap-1.5 bg-black/20 p-2 rounded-xl border border-white/5">
+                    <span className="text-xs text-muted-foreground font-medium">{f}:</span>
+                    <span className="text-xs text-muted-foreground">₹</span>
+                    <input
+                      type="number"
+                      value={customAmounts[f] || ""}
+                      onChange={(e) => setCustomAmounts({ ...customAmounts, [f]: e.target.value })}
+                      className="w-full bg-white/5 rounded px-2 py-1 text-xs text-right font-mono text-foreground outline-none"
+                      placeholder="0"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+
             {/* Calculated Breakdown Display */}
             <div className="space-y-1.5 pt-2 border-t border-white/05">
               {computedSplitDetails.map((d) => (
@@ -405,7 +503,7 @@ export function SharedExpenseModal({
         {errorMsg && (
           <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>{errorMsg}</span>
+            <span className="break-all">{errorMsg}</span>
           </div>
         )}
 
@@ -413,20 +511,25 @@ export function SharedExpenseModal({
           {expense && (
             <button
               type="button"
-              onClick={async () => {
-                await deleteExpense(expense.id);
-                onClose();
-              }}
-              className="px-4 py-2.5 rounded-xl bg-red-500/10 text-red-400 text-sm font-semibold hover:bg-red-500/20"
+              onClick={handleDelete}
+              disabled={deleting || saving}
+              className="px-4 py-2.5 rounded-xl bg-red-500/10 text-red-400 text-sm font-semibold hover:bg-red-500/20 disabled:opacity-50 flex items-center gap-1.5"
             >
-              Delete
+              {deleting ? (
+                <div className="w-4 h-4 border-2 border-red-400/30 border-t-red-400 rounded-full animate-spin" />
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4" />
+                  Delete
+                </>
+              )}
             </button>
           )}
           <button
             type="button"
             onClick={handleSave}
-            disabled={saving || !isValid}
-            className="flex-1 py-2.5 rounded-xl bee-gradient text-[#111] font-bold text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+            disabled={saving || deleting || !isValid}
+            className="flex-1 py-2.5 rounded-xl bee-gradient text-[#111] font-bold text-sm disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
           >
             {saving ? (
               <div className="w-4 h-4 border-2 border-[#111]/30 border-t-[#111] rounded-full animate-spin" />

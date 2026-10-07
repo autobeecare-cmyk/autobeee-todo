@@ -42,7 +42,7 @@ function GoalCard({ goal, onEdit, tasks }: { goal: Goal; onEdit: (g: Goal) => vo
     <motion.div
       layout
       variants={fadeUp}
-      className="rounded-2xl p-5 cursor-pointer bg-[#141414]/90 border border-white/[0.08] hover:border-white/15 hover:bg-[#181818]/90 transition-all shadow-sm backdrop-blur-md flex flex-col justify-between"
+      className="rounded-2xl p-5 cursor-pointer bg-[#141414]/90 border border-white/[0.08] hover:border-white/20 hover:bg-[#181818]/90 hover:-translate-y-0.5 transition-all duration-200 shadow-md backdrop-blur-md flex flex-col justify-between"
       onClick={() => onEdit(goal)}
     >
       <div>

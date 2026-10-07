@@ -9,10 +9,8 @@ import {
   Trash2,
   Edit3,
   TrendingUp,
-  TrendingDown,
-  DollarSign,
-  Wallet,
-  ArrowRight,
+  CreditCard,
+  Layers,
   Activity,
   Package,
   Building2,
@@ -24,24 +22,11 @@ import {
   Users,
   Code,
   Laptop,
-  Layers,
   Briefcase,
-  SlidersHorizontal,
-  ChevronRight,
+  Eye,
+  Split,
   Calendar,
-  CheckCircle2,
 } from "lucide-react";
-import {
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-} from "recharts";
 import {
   format,
   startOfMonth,
@@ -58,10 +43,15 @@ import {
 } from "date-fns";
 import { useExpenseStore } from "@/store/useExpenseStore";
 import { useIncomeStore } from "@/store/useIncomeStore";
+import { useSettlementStore } from "@/store/useSettlementStore";
+import { deleteExpense, createExpense } from "@/lib/supabase/expenses";
+import { deleteExpenseSplit } from "@/lib/supabase/settlements";
+import { deleteIncome, createIncome, updateIncome } from "@/lib/supabase/income";
 import { usePartnerStore } from "@/store/usePartnerStore";
-import { createExpense, deleteExpense } from "@/lib/supabase/expenses";
-import { createIncome, updateIncome, deleteIncome } from "@/lib/supabase/income";
-import { FounderLedgerSection } from "@/components/money/FounderLedgerSection";
+import { CompanyShareSection } from "@/components/money/CompanyShareSection";
+import { SpendingTrendChart } from "@/components/money/SpendingTrendChart";
+import { ExpenseDetailModal } from "@/components/money/ExpenseDetailModal";
+import { ExpenseSplitModal } from "@/components/money/ExpenseSplitModal";
 import { SharedExpenseModal } from "@/components/money/SharedExpenseModal";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -71,11 +61,12 @@ import type {
   Person,
   ExpenseCategory,
   IncomeCategory,
-  PaymentMethod,
   IncomePaymentMethod,
+  FounderName,
 } from "@/lib/types";
 
-const PERSONS: Person[] = ["Sourabh", "Asher"];
+const ACTIVE_PERSONS: Person[] = ["Sourabh", "Asher"];
+
 const EXP_CATEGORIES: ExpenseCategory[] = [
   "equipment",
   "operations",
@@ -89,19 +80,7 @@ const EXP_CATEGORIES: ExpenseCategory[] = [
   "meetings",
   "misc",
 ];
-const INC_CATEGORIES: IncomeCategory[] = [
-  "Client",
-  "Investment",
-  "Grant",
-  "Loan",
-  "Revenue",
-  "Other",
-];
 
-const PAYMENT_METHODS: PaymentMethod[] = ["cash", "upi", "card", "bank"];
-const INC_PAYMENT_METHODS: IncomePaymentMethod[] = ["Cash", "UPI", "Card", "Bank transfer"];
-
-// Category icon mapper
 function getCategoryIcon(category: string) {
   const c = category.toLowerCase();
   switch (c) {
@@ -246,107 +225,127 @@ function IncomeModal({
           <input
             value={source}
             onChange={(e) => setSource(e.target.value)}
-            placeholder="Source (e.g. Client payment — ABC Car Wash)"
+            placeholder="Source (e.g. Client payment)"
             className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-sm outline-none focus:border-[#FFC107]/50 transition-colors text-foreground"
           />
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-muted-foreground mb-1.5 block">Category</label>
+              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
+                Category
+              </label>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value as IncomeCategory)}
-                className="w-full px-3 py-2 rounded-xl bg-[#1a1a1a] border border-white/10 text-sm outline-none text-foreground select-none"
+                className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs outline-none focus:border-[#FFC107]/50 text-foreground"
               >
-                {INC_CATEGORIES.map((c) => (
-                  <option key={c} value={c} className="bg-[#1a1a1a] text-[#f5f5f5] capitalize">
-                    {c}
+                {["Client", "Investment", "Grant", "Loan", "Revenue", "Other"].map((cat) => (
+                  <option key={cat} value={cat} className="bg-[#141414] text-foreground">
+                    {cat}
                   </option>
                 ))}
               </select>
             </div>
+
             <div>
-              <label className="text-xs text-muted-foreground mb-1.5 block">Received by</label>
+              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
+                Received By
+              </label>
               <select
                 value={receivedBy}
                 onChange={(e) => setReceivedBy(e.target.value as Person)}
-                className="w-full px-3 py-2 rounded-xl bg-[#1a1a1a] border border-white/10 text-sm outline-none text-foreground"
+                className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs outline-none focus:border-[#FFC107]/50 text-foreground"
               >
-                {PERSONS.map((p) => (
-                  <option key={p} value={p} className="bg-[#1a1a1a] text-[#f5f5f5]">
-                    {p}
+                {ACTIVE_PERSONS.map((person) => (
+                  <option key={person} value={person} className="bg-[#141414] text-foreground">
+                    {person}
                   </option>
                 ))}
               </select>
             </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-muted-foreground mb-1.5 block">Date</label>
+              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
+                Date
+              </label>
               <input
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-[#1a1a1a] border border-white/10 text-sm outline-none text-foreground"
+                className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs outline-none focus:border-[#FFC107]/50 text-foreground"
               />
             </div>
+
             <div>
-              <label className="text-xs text-muted-foreground mb-1.5 block">Payment Method</label>
+              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
+                Method
+              </label>
               <select
                 value={method}
                 onChange={(e) => setMethod(e.target.value as IncomePaymentMethod)}
-                className="w-full px-3 py-2 rounded-xl bg-[#1a1a1a] border border-white/10 text-sm outline-none text-foreground"
+                className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs outline-none focus:border-[#FFC107]/50 text-foreground"
               >
-                {INC_PAYMENT_METHODS.map((m) => (
-                  <option key={m} value={m} className="bg-[#1a1a1a] text-[#f5f5f5]">
+                {["Cash", "UPI", "Card", "Bank transfer"].map((m) => (
+                  <option key={m} value={m} className="bg-[#141414] text-foreground">
                     {m}
                   </option>
                 ))}
               </select>
             </div>
-
-            <div className="col-span-2">
-              <label className="text-xs text-muted-foreground mb-1.5 block">
-                From Partner (Optional)
-              </label>
-              <select
-                value={relatedPartnerId}
-                onChange={(e) => handlePartnerChange(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-[#1a1a1a] border border-white/10 text-sm outline-none text-foreground cursor-pointer"
-              >
-                <option value="" className="bg-[#1a1a1a]">
-                  None
-                </option>
-                {joinedPartners.map((p) => (
-                  <option key={p.id} value={p.id} className="bg-[#1a1a1a]">
-                    {p.name} ({p.area})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {relatedPartnerId && (
-              <div className="col-span-2 p-3 rounded-xl bg-[#FFC107]/5 border border-[#FFC107]/15 flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">Autobee Booking Commission Rate:</span>
-                <span className="font-bold text-[#FFC107]">{commissionRate}%</span>
-              </div>
-            )}
           </div>
+
+          {joinedPartners.length > 0 && (
+            <div className="space-y-3 pt-2 border-t border-white/5">
+              <div>
+                <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
+                  Link Partner (Optional)
+                </label>
+                <select
+                  value={relatedPartnerId}
+                  onChange={(e) => handlePartnerChange(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs outline-none focus:border-[#FFC107]/50 text-foreground"
+                >
+                  <option value="" className="bg-[#141414] text-foreground">
+                    None (General Income)
+                  </option>
+                  {joinedPartners.map((partner) => (
+                    <option key={partner.id} value={partner.id} className="bg-[#141414] text-foreground">
+                      {partner.name} ({partner.city})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {relatedPartnerId && (
+                <div>
+                  <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
+                    Commission Rate (%)
+                  </label>
+                  <input
+                    type="number"
+                    value={commissionRate}
+                    onChange={(e) => setCommissionRate(e.target.value)}
+                    placeholder="e.g. 15"
+                    className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs outline-none focus:border-[#FFC107]/50 text-foreground"
+                  />
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="flex gap-3 pt-2">
-          {incomeItem && (
-            <button
-              onClick={async () => {
-                await deleteIncome(incomeItem.id);
-                onClose();
-              }}
-              className="px-4 py-2.5 rounded-xl bg-red-500/10 text-red-400 text-sm hover:bg-red-500/20 transition-colors"
-            >
-              Delete
-            </button>
-          )}
           <button
-            onClick={save}
+            onClick={onClose}
+            className="flex-1 py-2.5 rounded-xl bg-white/5 text-muted-foreground font-semibold text-sm hover:bg-white/10 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
             disabled={saving || !amount || !source}
+            onClick={save}
             className="flex-1 py-2.5 rounded-xl bee-gradient text-[#111] font-bold text-sm disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {saving ? (
@@ -363,13 +362,112 @@ function IncomeModal({
   );
 }
 
-// ── Main Component ──
+// ── EXPENSE BREAKDOWN CARD COMPONENT ──
+function ExpenseBreakdownCard({
+  expenseCategorySums,
+  totalCategoryExpenses,
+  highlightCategory,
+  setHighlightCategory,
+}: {
+  expenseCategorySums: { category: string; amount: number }[];
+  totalCategoryExpenses: number;
+  highlightCategory: string | null;
+  setHighlightCategory: (cat: string | null) => void;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay: 0.1 }}
+      className="rounded-2xl bg-[#121212]/90 backdrop-blur-xl border border-white/[0.08] p-4 sm:p-5 space-y-3.5 shadow-xl"
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 rounded-lg bg-[#FFC107]/10 text-[#FFC107]">
+            <Activity className="w-4 h-4" />
+          </div>
+          <div>
+            <h3 className="font-bold text-xs sm:text-sm text-foreground uppercase tracking-wider">
+              Expense Breakdown
+            </h3>
+            <p className="text-[10px] text-muted-foreground">Spending by actual category</p>
+          </div>
+        </div>
+        {highlightCategory && (
+          <button
+            onClick={() => setHighlightCategory(null)}
+            className="text-[10px] text-amber-400 hover:underline font-medium cursor-pointer"
+          >
+            Clear filter
+          </button>
+        )}
+      </div>
+
+      {expenseCategorySums.length === 0 ? (
+        <p className="text-xs text-muted-foreground py-4 text-center">No expenses recorded.</p>
+      ) : (
+        <div className="space-y-2.5">
+          {expenseCategorySums.map((item) => {
+            const pct =
+              totalCategoryExpenses > 0
+                ? Math.round((item.amount / totalCategoryExpenses) * 100)
+                : 0;
+            const isSelected = highlightCategory === item.category;
+
+            return (
+              <button
+                key={item.category}
+                type="button"
+                onClick={() =>
+                  setHighlightCategory(isSelected ? null : item.category)
+                }
+                className={cn(
+                  "w-full text-left p-2.5 rounded-xl transition-all border text-xs cursor-pointer",
+                  isSelected
+                    ? "bg-[#FFC107]/10 border-[#FFC107]/40 ring-1 ring-[#FFC107]/30"
+                    : "bg-white/[0.02] border-white/[0.04] hover:bg-white/[0.04] hover:border-white/10"
+                )}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {getCategoryIcon(item.category)}
+                    <span className="font-semibold text-foreground/90 capitalize">
+                      {item.category}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-muted-foreground font-mono">{pct}%</span>
+                    <span className="font-bold text-foreground font-mono tabular-nums">
+                      ₹{item.amount.toLocaleString("en-IN")}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="w-full bg-white/[0.04] h-1.5 rounded-full overflow-hidden mt-2">
+                  <div
+                    className="bg-gradient-to-r from-[#FFC107] to-[#FFD54F] h-full rounded-full transition-all duration-500"
+                    style={{ width: `${Math.max(4, pct)}%` }}
+                  />
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+// ── MAIN MONEY PAGE COMPONENT ──
 
 export default function MoneyPage() {
   const { expenses, loading: expLoading } = useExpenseStore();
   const { income, loading: incLoading } = useIncomeStore();
+  const { splits, saveSplit } = useSettlementStore();
   const loading = expLoading || incLoading;
 
+  const [inspectExp, setInspectExp] = useState<Expense | null>(null);
+  const [splittingExp, setSplittingExp] = useState<Expense | null>(null);
   const [editExp, setEditExp] = useState<Expense | null>(null);
   const [editInc, setEditInc] = useState<Income | null>(null);
   const [creatingExp, setCreatingExp] = useState(false);
@@ -386,15 +484,22 @@ export default function MoneyPage() {
   // Quick add inline expense state
   const [quickAmount, setQuickAmount] = useState("");
   const [quickPurpose, setQuickPurpose] = useState("");
-  const [quickCat, setQuickCat] = useState<ExpenseCategory>("misc");
+  const [quickCat, setQuickCat] = useState<ExpenseCategory>("operations");
   const [quickPerson, setQuickPerson] = useState<Person>("Sourabh");
   const [quickAdding, setQuickAdding] = useState(false);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
 
   const now = new Date();
 
-  // Time Range Filter State
-  const [timeRange, setTimeRange] = useState<"all" | "year" | "month" | "week">("month");
+  // Time Range Filter State: default to "all" to immediately display full ₹39,562 total
+  const [timeRange, setTimeRange] = useState<"all" | "year" | "month" | "week">("all");
+
+  // Map expense_id -> ExpenseSplit for quick lookup
+  const splitMap = useMemo(() => {
+    const map = new Map<string, (typeof splits)[0]>();
+    splits.forEach((s) => map.set(s.expenseId, s));
+    return map;
+  }, [splits]);
 
   // Calculate start and end dates based on timeRange
   const dateRange = useMemo(() => {
@@ -431,7 +536,7 @@ export default function MoneyPage() {
     return expenses.filter((e) => isDateInSelectedRange(e.date));
   }, [expenses, dateRange]);
 
-  // All-time and Month totals
+  // Overall totals
   const allTimeExpenseTotal = useMemo(() => {
     return expenses.reduce((s, e) => s + e.amount, 0);
   }, [expenses]);
@@ -450,23 +555,44 @@ export default function MoneyPage() {
       .reduce((s, e) => s + e.amount, 0);
   }, [expenses, now]);
 
+  const currentYearExpenseTotal = useMemo(() => {
+    const start = startOfYear(now);
+    const end = endOfYear(now);
+    return expenses
+      .filter((e) => {
+        try {
+          return isWithinInterval(parseISO(e.date), { start, end });
+        } catch {
+          return false;
+        }
+      })
+      .reduce((s, e) => s + e.amount, 0);
+  }, [expenses, now]);
+
   const displayedExpenseTotal = useMemo(() => {
     return filteredExpenses.reduce((s, e) => s + e.amount, 0);
   }, [filteredExpenses]);
 
-  const displayedIncomeTotal = useMemo(() => {
-    return filteredIncome.reduce((s, i) => s + i.amount, 0);
-  }, [filteredIncome]);
+  const averageExpense = useMemo(() => {
+    if (filteredExpenses.length === 0) return 0;
+    return Math.round(displayedExpenseTotal / filteredExpenses.length);
+  }, [displayedExpenseTotal, filteredExpenses.length]);
 
-  const displayedNetFlow = displayedIncomeTotal - displayedExpenseTotal;
-
-  // Range label
   const rangeLabel = {
     all: "All time",
     year: "This year",
     month: "This month",
     week: "This week",
   }[timeRange];
+
+  // Dynamic categories from existing DB records
+  const dynamicExpenseCategories = useMemo(() => {
+    const set = new Set<string>();
+    expenses.forEach((e) => {
+      if (e.category) set.add(e.category);
+    });
+    return Array.from(set).sort();
+  }, [expenses]);
 
   // Category sums for Expense Breakdown
   const expenseCategorySums = useMemo(() => {
@@ -483,42 +609,6 @@ export default function MoneyPage() {
   const totalCategoryExpenses = useMemo(() => {
     return expenseCategorySums.reduce((sum, item) => sum + item.amount, 0);
   }, [expenseCategorySums]);
-
-  // Spending Bar Chart Data (Month-on-Month Trend)
-  const barChartData = useMemo(() => {
-    return [3, 2, 1, 0].map((monthsAgo) => {
-      const d = new Date();
-      d.setMonth(d.getMonth() - monthsAgo);
-      const start = startOfMonth(d);
-      const end = endOfMonth(d);
-
-      const expTotal = expenses
-        .filter((e) => {
-          try {
-            return isWithinInterval(parseISO(e.date), { start, end });
-          } catch {
-            return false;
-          }
-        })
-        .reduce((sum, e) => sum + e.amount, 0);
-
-      const incTotal = income
-        .filter((i) => {
-          try {
-            return isWithinInterval(parseISO(i.date), { start, end });
-          } catch {
-            return false;
-          }
-        })
-        .reduce((sum, i) => sum + i.amount, 0);
-
-      return {
-        period: format(d, "MMM"),
-        Expenses: expTotal,
-        Income: incTotal,
-      };
-    });
-  }, [expenses, income]);
 
   // Unified Chronological Ledger
   const ledgerItems = useMemo(() => {
@@ -561,14 +651,18 @@ export default function MoneyPage() {
       items = items.filter((x) => x.person === filterPerson);
     }
     if (filterCategory !== "all") {
-      items = items.filter((x) => x.category === filterCategory);
+      items = items.filter((x) => x.category.toLowerCase() === filterCategory.toLowerCase());
     }
     if (highlightCategory) {
-      items = items.filter((x) => x.category === highlightCategory);
+      items = items.filter((x) => x.category.toLowerCase() === highlightCategory.toLowerCase());
     }
     if (search) {
-      items = items.filter((x) =>
-        x.sourceOrPurpose.toLowerCase().includes(search.toLowerCase())
+      const q = search.toLowerCase();
+      items = items.filter(
+        (x) =>
+          x.sourceOrPurpose.toLowerCase().includes(q) ||
+          (x.notes && x.notes.toLowerCase().includes(q)) ||
+          x.category.toLowerCase().includes(q)
       );
     }
     return items;
@@ -646,13 +740,12 @@ export default function MoneyPage() {
             <span className="inline-block w-2 h-2 rounded-full bg-[#FFC107] animate-pulse" />
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Corporate Financial Book · ₹ INR
+            AutoBee OS · Fixed Share Company Allocation
           </p>
         </div>
 
         {/* Time Scope Segmented Control & + Add Action */}
         <div className="flex items-center gap-2.5 self-stretch sm:self-auto justify-between sm:justify-end">
-          {/* Segmented Control */}
           <div className="flex bg-white/[0.04] border border-white/[0.08] rounded-xl p-1 backdrop-blur-md">
             {(["all", "year", "month", "week"] as const).map((range) => (
               <button
@@ -682,7 +775,6 @@ export default function MoneyPage() {
               <span>Add</span>
             </motion.button>
 
-            {/* Dropdown Menu */}
             <AnimatePresence>
               {showAddMenu && (
                 <>
@@ -722,167 +814,98 @@ export default function MoneyPage() {
                       <span>+ Income</span>
                     </button>
                   </motion.div>
-                </>
+                </> 
               )}
             </AnimatePresence>
           </div>
         </div>
       </div>
 
-      {/* ── RESPONSIVE GRID LAYOUT ── */}
+      {/* ── RESPONSIVE 2-COLUMN DESKTOP / STACKED MOBILE LAYOUT ── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 items-start">
-        {/* ── LEFT COLUMN (Main: Spending Hero, Graph, Recent Expenses) ── */}
+        {/* ── LEFT COLUMN: Summary, Company Share, Spending Trend ── */}
         <div className="lg:col-span-7 space-y-4 sm:space-y-5 w-full">
-          {/* 1. PRIMARY FINANCIAL CARD */}
+          {/* 1. PRIMARY COMPANY SPENDING CARD */}
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
             className="relative overflow-hidden rounded-[22px] bg-[#121212]/95 backdrop-blur-xl border border-white/[0.09] p-5 sm:p-6 shadow-2xl"
           >
-            {/* Subtle glow background */}
             <div className="absolute top-0 right-0 w-48 h-48 bg-[#FFC107]/5 rounded-full blur-3xl pointer-events-none" />
-
             <div className="relative space-y-4">
-              {/* Header pill */}
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-bold tracking-widest text-[#FFC107] uppercase">
                   COMPANY SPENDING
                 </span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-muted-foreground font-mono font-medium">
+                <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-muted-foreground font-mono font-medium">
                   {rangeLabel}
                 </span>
               </div>
 
-              {/* Main Spending Figure */}
               <div>
                 <div className="text-3xl sm:text-4xl font-black tracking-tight text-foreground font-mono">
                   ₹{displayedExpenseTotal.toLocaleString("en-IN")}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Total company expenses {rangeLabel.toLowerCase()}
+                  Total company spending recorded in system
                 </p>
               </div>
 
-              {/* Comparative Metrics Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-3 border-t border-white/[0.06]">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-3 border-t border-white/[0.06]">
                 <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
-                  <span className="text-[10px] font-medium text-muted-foreground block">
-                    This month
-                  </span>
+                  <span className="text-[10px] font-medium text-muted-foreground block">This Month</span>
                   <span className="text-sm sm:text-base font-bold text-foreground font-mono mt-0.5 block">
                     ₹{currentMonthExpenseTotal.toLocaleString("en-IN")}
                   </span>
                 </div>
-
                 <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
-                  <span className="text-[10px] font-medium text-muted-foreground block">
-                    All time
-                  </span>
+                  <span className="text-[10px] font-medium text-muted-foreground block">This Year</span>
                   <span className="text-sm sm:text-base font-bold text-foreground font-mono mt-0.5 block">
-                    ₹{allTimeExpenseTotal.toLocaleString("en-IN")}
+                    ₹{currentYearExpenseTotal.toLocaleString("en-IN")}
                   </span>
                 </div>
-
-                <div className="col-span-2 sm:col-span-1 p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
-                  <span className="text-[10px] font-medium text-muted-foreground block">
-                    Net Flow
+                <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
+                  <span className="text-[10px] font-medium text-muted-foreground block">Transactions</span>
+                  <span className="text-sm sm:text-base font-bold text-foreground font-mono mt-0.5 block">
+                    {filteredExpenses.length}
                   </span>
-                  <span
-                    className={cn(
-                      "text-sm sm:text-base font-bold font-mono mt-0.5 block",
-                      displayedNetFlow >= 0 ? "text-emerald-400" : "text-amber-400"
-                    )}
-                  >
-                    {displayedNetFlow >= 0 ? "+" : ""}₹{displayedNetFlow.toLocaleString("en-IN")}
+                </div>
+                <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
+                  <span className="text-[10px] font-medium text-muted-foreground block">Avg Expense</span>
+                  <span className="text-sm sm:text-base font-bold text-foreground font-mono mt-0.5 block">
+                    ₹{averageExpense.toLocaleString("en-IN")}
                   </span>
                 </div>
               </div>
             </div>
           </motion.div>
 
-          {/* ── MOBILE-ONLY INSERTION: FOUNDER CONTRIBUTIONS & SETTLEMENTS ── */}
-          {/* On mobile, founder sections display here right below company spending */}
-          <div className="block lg:hidden space-y-4">
-            <FounderLedgerSection />
-          </div>
+          {/* 2. COMPANY SHARE SECTION */}
+          <CompanyShareSection />
 
-          {/* 2. SPENDING VISUALIZATION (BAR GRAPH) */}
+          {/* 3. SPENDING TREND CHART */}
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.1 }}
-            className="rounded-[22px] bg-[#121212]/90 backdrop-blur-xl border border-white/[0.08] p-5 sm:p-6 space-y-4 shadow-xl"
+            transition={{ duration: 0.3, delay: 0.05 }}
+            className="rounded-[22px] bg-[#121212]/90 backdrop-blur-xl border border-white/[0.08] p-5 sm:p-6 shadow-xl"
           >
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-bold text-xs sm:text-sm text-foreground uppercase tracking-wider">
-                  Spending Trend
-                </h3>
-                <p className="text-[10px] text-muted-foreground">
-                  Month-on-month expense & income overview
-                </p>
-              </div>
-              <div className="flex items-center gap-3 text-[10px]">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-sm bg-[#FFC107]" />
-                  <span className="text-muted-foreground">Expenses</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-sm bg-emerald-400" />
-                  <span className="text-muted-foreground">Income</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="h-[170px] sm:h-[190px] w-full pt-2">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={barChartData}
-                  margin={{ top: 10, right: 10, bottom: 0, left: -20 }}
-                  barGap={6}
-                >
-                  <XAxis
-                    dataKey="period"
-                    tick={{ fontSize: 11, fill: "#888" }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 10, fill: "#666" }}
-                    axisLine={false}
-                    tickLine={false}
-                    tickFormatter={(v) => `₹${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`}
-                  />
-                  <Tooltip
-                    cursor={{ fill: "rgba(255,255,255,0.03)" }}
-                    contentStyle={{
-                      background: "#161616",
-                      border: "1px solid rgba(255,255,255,0.1)",
-                      borderRadius: "12px",
-                      fontSize: "11px",
-                      boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
-                    }}
-                    labelStyle={{ color: "#aaa", fontWeight: "bold" }}
-                  />
-                  <Bar dataKey="Expenses" fill="#FFC107" radius={[4, 4, 0, 0]} maxBarSize={32} />
-                  <Bar dataKey="Income" fill="#22c55e" radius={[4, 4, 0, 0]} maxBarSize={32} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            <SpendingTrendChart expenses={expenses} timeRange={timeRange} />
           </motion.div>
+        </div>
 
-          {/* ── MOBILE-ONLY INSERTION: EXPENSE BREAKDOWN ── */}
-          <div className="block lg:hidden">
-            <ExpenseBreakdownCard
-              expenseCategorySums={expenseCategorySums}
-              totalCategoryExpenses={totalCategoryExpenses}
-              highlightCategory={highlightCategory}
-              setHighlightCategory={setHighlightCategory}
-            />
-          </div>
+        {/* ── RIGHT COLUMN: Expense Breakdown & Recent Expenses List ── */}
+        <div className="lg:col-span-5 space-y-5 w-full">
+          {/* Expense Breakdown Card */}
+          <ExpenseBreakdownCard
+            expenseCategorySums={expenseCategorySums}
+            totalCategoryExpenses={totalCategoryExpenses}
+            highlightCategory={highlightCategory}
+            setHighlightCategory={setHighlightCategory}
+          />
 
-          {/* 3. RECENT EXPENSES & TRANSACTIONS */}
+          {/* Recent Expenses Ledger with Direct Split Interaction */}
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
@@ -897,21 +920,21 @@ export default function MoneyPage() {
                     Recent Expenses
                   </h3>
                   <p className="text-[10px] text-muted-foreground">
-                    Chronological financial records
+                    Company ledger & share allocation
                   </p>
                 </div>
 
                 <button
                   type="button"
                   onClick={() => setShowQuickAdd(!showQuickAdd)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-xs font-semibold text-foreground hover:bg-white/[0.08] transition-colors cursor-pointer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-xs font-semibold text-foreground hover:bg-white/[0.08] transition cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5 text-[#FFC107]" />
                   <span>Quick Add</span>
                 </button>
               </div>
 
-              {/* Quick Add Inline Form */}
+              {/* Inline Quick Add */}
               <AnimatePresence>
                 {showQuickAdd && (
                   <motion.form
@@ -939,9 +962,9 @@ export default function MoneyPage() {
                       <input
                         value={quickPurpose}
                         onChange={(e) => setQuickPurpose(e.target.value)}
-                        placeholder="Purpose (e.g. Domain)"
+                        placeholder="Purpose"
                         required
-                        className="col-span-1 sm:col-span-1 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs outline-none text-foreground focus:border-[#FFC107]/50"
+                        className="col-span-1 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs outline-none text-foreground focus:border-[#FFC107]/50"
                       />
                       <select
                         value={quickCat}
@@ -959,7 +982,7 @@ export default function MoneyPage() {
                         onChange={(e) => setQuickPerson(e.target.value as Person)}
                         className="col-span-1 px-2 py-2 rounded-xl bg-[#1a1a1a] border border-white/10 text-xs outline-none text-foreground"
                       >
-                        {PERSONS.map((p) => (
+                        {ACTIVE_PERSONS.map((p) => (
                           <option key={p} value={p} className="bg-[#1a1a1a] text-[#f5f5f5]">
                             {p}
                           </option>
@@ -978,7 +1001,7 @@ export default function MoneyPage() {
                       <button
                         type="submit"
                         disabled={quickAdding || !quickAmount || !quickPurpose}
-                        className="px-3.5 py-1.5 rounded-lg bee-gradient text-[#111] font-bold text-xs disabled:opacity-50 flex items-center gap-1.5"
+                        className="px-3.5 py-1.5 rounded-lg bee-gradient text-[#111] font-bold text-xs disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
                       >
                         {quickAdding ? (
                           <div className="w-3 h-3 border-2 border-[#111]/30 border-t-[#111] rounded-full animate-spin" />
@@ -993,7 +1016,7 @@ export default function MoneyPage() {
 
               {/* Search & Filter Bar */}
               <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 pt-1">
-                <div className="relative flex-1 min-w-[140px]">
+                <div className="relative flex-1 min-w-[120px]">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                   <input
                     value={search}
@@ -1004,24 +1027,27 @@ export default function MoneyPage() {
                 </div>
 
                 <select
-                  value={filterType}
-                  onChange={(e) => setFilterType(e.target.value as any)}
-                  className="px-2.5 py-1.5 rounded-xl bg-[#1a1a1a] border border-white/10 text-xs outline-none text-foreground"
-                >
-                  <option value="all">All Types</option>
-                  <option value="expense">Expenses Only</option>
-                  <option value="income">Income Only</option>
-                </select>
-
-                <select
                   value={filterPerson}
                   onChange={(e) => setFilterPerson(e.target.value as any)}
                   className="px-2.5 py-1.5 rounded-xl bg-[#1a1a1a] border border-white/10 text-xs outline-none text-foreground"
                 >
-                  <option value="all">All Founders</option>
-                  {PERSONS.map((p) => (
+                  <option value="all">All Payers</option>
+                  {ACTIVE_PERSONS.map((p) => (
                     <option key={p} value={p} className="bg-[#1a1a1a] text-[#f5f5f5]">
                       {p}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={filterCategory}
+                  onChange={(e) => setFilterCategory(e.target.value)}
+                  className="px-2.5 py-1.5 rounded-xl bg-[#1a1a1a] border border-white/10 text-xs outline-none text-foreground capitalize max-w-[120px]"
+                >
+                  <option value="all">All Categories</option>
+                  {dynamicExpenseCategories.map((c) => (
+                    <option key={c} value={c} className="bg-[#1a1a1a] text-[#f5f5f5] capitalize">
+                      {c}
                     </option>
                   ))}
                 </select>
@@ -1029,7 +1055,7 @@ export default function MoneyPage() {
                 {highlightCategory && (
                   <button
                     onClick={() => setHighlightCategory(null)}
-                    className="text-[10px] font-bold text-[#FFC107] bg-[#FFC107]/10 border border-[#FFC107]/20 px-2 py-1.5 rounded-xl flex items-center gap-1"
+                    className="text-[10px] font-bold text-[#FFC107] bg-[#FFC107]/10 border border-[#FFC107]/20 px-2 py-1.5 rounded-xl flex items-center gap-1 shrink-0 cursor-pointer"
                   >
                     <span>{highlightCategory}</span>
                     <X className="w-3 h-3" />
@@ -1057,75 +1083,126 @@ export default function MoneyPage() {
                       {group.title}
                     </h4>
                     <div className="space-y-1">
-                      {group.items.map((item) => (
-                        <div
-                          key={`${item.type}-${item.id}`}
-                          onClick={() =>
-                            item.type === "income"
-                              ? setEditInc(item.rawItem as Income)
-                              : setEditExp(item.rawItem as Expense)
-                          }
-                          className="group flex items-center justify-between p-3 bg-white/[0.02] border border-white/[0.04] rounded-xl hover:bg-white/[0.05] hover:border-white/10 cursor-pointer transition-all text-xs"
-                        >
-                          <div className="flex items-center gap-3 min-w-0 flex-1">
-                            {/* Icon badge */}
-                            <div className="w-8 h-8 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center shrink-0">
-                              {getCategoryIcon(item.category)}
+                      {group.items.map((item) => {
+                        const isSourabh = item.person === "Sourabh";
+                        const expSplit = item.type === "expense" ? splitMap.get(item.id) : null;
+                        const sSplit = expSplit?.splitDetails?.find((d) => d.founder === "Sourabh");
+                        const aSplit = expSplit?.splitDetails?.find((d) => d.founder === "Asher");
+
+                        let dateDisplay = item.date;
+                        try {
+                          dateDisplay = format(item.rawDate, "dd MMM");
+                        } catch {}
+
+                        return (
+                          <div
+                            key={`${item.type}-${item.id}`}
+                            onClick={() => {
+                              if (item.type === "expense") {
+                                setInspectExp(item.rawItem as Expense);
+                              } else {
+                                setEditInc(item.rawItem as Income);
+                              }
+                            }}
+                            className="group flex items-center justify-between p-3 bg-white/[0.02] border border-white/[0.04] rounded-xl hover:bg-white/[0.05] hover:border-white/10 cursor-pointer transition-all text-xs"
+                          >
+                            <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
+                              <div className="w-8 h-8 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center shrink-0">
+                                {getCategoryIcon(item.category)}
+                              </div>
+
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs sm:text-sm font-semibold text-foreground/95 truncate">
+                                  {item.sourceOrPurpose}
+                                </p>
+                                <div className="flex items-center gap-1.5 mt-0.5 text-muted-foreground text-[10px] flex-wrap">
+                                  <span className="capitalize">{item.category}</span>
+                                  <span>·</span>
+                                  <span>Paid by </span>
+                                  <span
+                                    className={cn(
+                                      "font-semibold",
+                                      isSourabh ? "text-[#FFC107]" : "text-[#60A5FA]"
+                                    )}
+                                  >
+                                    {item.person}
+                                  </span>
+                                  <span className="hidden sm:inline">·</span>
+                                  <span className="hidden sm:inline font-mono text-[9px] text-muted-foreground/70">
+                                    {dateDisplay}
+                                  </span>
+                                  {expSplit && (
+                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded bg-amber-400/10 text-amber-300 font-mono text-[9px] border border-amber-400/20">
+                                      Split: S ₹{(sSplit?.amount || 0).toFixed(0)} · A ₹{(aSplit?.amount || 0).toFixed(0)}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
                             </div>
 
-                            <div className="min-w-0 flex-1">
-                              <p className="text-xs sm:text-sm font-semibold text-foreground/95 truncate pr-2">
-                                {item.sourceOrPurpose}
-                              </p>
-                              <div className="flex items-center gap-1.5 mt-0.5 text-muted-foreground text-[10px]">
-                                <span className="capitalize">{item.category}</span>
-                                <span>·</span>
-                                <span>{item.person}</span>
-                                <span className="hidden sm:inline">·</span>
-                                <span className="hidden sm:inline uppercase">{item.method}</span>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span
+                                className={cn(
+                                  "text-xs sm:text-sm font-bold font-mono tabular-nums",
+                                  item.type === "income" ? "text-emerald-400" : "text-foreground"
+                                )}
+                              >
+                                {item.type === "income" ? "+" : "-"}₹
+                                {item.amount.toLocaleString("en-IN")}
+                              </span>
+
+                              {/* Split button */}
+                              {item.type === "expense" && (
+                                <button
+                                  type="button"
+                                  title="Split into company shares"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSplittingExp(item.rawItem as Expense);
+                                  }}
+                                  className="px-2 py-1 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-[10px] font-semibold text-muted-foreground hover:text-amber-400 transition flex items-center gap-1 cursor-pointer"
+                                >
+                                  <Split className="w-3 h-3 text-[#FFC107]" />
+                                  <span className="hidden sm:inline">Split</span>
+                                </button>
+                              )}
+
+                              {/* Action controls */}
+                              <div
+                                className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity max-sm:hidden"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <button
+                                  type="button"
+                                  title="Edit"
+                                  onClick={() => {
+                                    if (item.type === "expense") {
+                                      setEditExp(item.rawItem as Expense);
+                                    } else {
+                                      setEditInc(item.rawItem as Income);
+                                    }
+                                  }}
+                                  className="p-1 rounded-lg hover:bg-white/10 text-muted-foreground hover:text-foreground cursor-pointer"
+                                >
+                                  <Edit3 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  title="Delete"
+                                  onClick={async () => {
+                                    if (confirm("Delete this transaction?")) {
+                                      await handleDeleteLedgerItem(item);
+                                    }
+                                  }}
+                                  className="p-1 rounded-lg hover:bg-red-500/20 text-muted-foreground hover:text-red-400 cursor-pointer"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
                               </div>
                             </div>
                           </div>
-
-                          <div className="flex items-center gap-3 shrink-0">
-                            <span
-                              className={cn(
-                                "text-xs sm:text-sm font-bold font-mono tabular-nums",
-                                item.type === "income" ? "text-emerald-400" : "text-foreground"
-                              )}
-                            >
-                              {item.type === "income" ? "+" : "-"}₹
-                              {item.amount.toLocaleString("en-IN")}
-                            </span>
-
-                            <div
-                              className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity max-sm:hidden"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <button
-                                onClick={() =>
-                                  item.type === "income"
-                                    ? setEditInc(item.rawItem as Income)
-                                    : setEditExp(item.rawItem as Expense)
-                                }
-                                className="p-1 rounded-lg hover:bg-white/10 text-muted-foreground hover:text-foreground"
-                              >
-                                <Edit3 className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={async () => {
-                                  if (confirm("Delete this transaction?")) {
-                                    await handleDeleteLedgerItem(item);
-                                  }
-                                }}
-                                className="p-1 rounded-lg hover:bg-red-500/20 text-muted-foreground hover:text-red-400"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 ))}
@@ -1133,127 +1210,58 @@ export default function MoneyPage() {
             )}
           </motion.div>
         </div>
-
-        {/* ── RIGHT COLUMN (Desktop Sidebar: Founder Contributions, Settlements, Debts, Breakdown) ── */}
-        <div className="hidden lg:block lg:col-span-5 space-y-5 w-full">
-          {/* Founder Ledger & Settlements */}
-          <FounderLedgerSection />
-
-          {/* Expense Breakdown */}
-          <ExpenseBreakdownCard
-            expenseCategorySums={expenseCategorySums}
-            totalCategoryExpenses={totalCategoryExpenses}
-            highlightCategory={highlightCategory}
-            setHighlightCategory={setHighlightCategory}
-          />
-        </div>
       </div>
 
       {/* ── MODALS CONTAINER ── */}
       <AnimatePresence>
+        {/* Expense Detail View Modal */}
+        {inspectExp && (
+          <ExpenseDetailModal
+            expense={inspectExp}
+            split={splitMap.get(inspectExp.id)}
+            onClose={() => setInspectExp(null)}
+            onEdit={(exp) => {
+              setInspectExp(null);
+              setEditExp(exp);
+            }}
+            onDelete={async (exp) => {
+              setInspectExp(null);
+              await deleteExpenseSplit(exp.id);
+              await deleteExpense(exp.id);
+            }}
+            onOpenSplit={(exp) => {
+              setInspectExp(null);
+              setSplittingExp(exp);
+            }}
+          />
+        )}
+
+        {/* Split Expense Modal */}
+        {splittingExp && (
+          <ExpenseSplitModal
+            expense={splittingExp}
+            existingSplit={splitMap.get(splittingExp.id)}
+            onClose={() => setSplittingExp(null)}
+            onSave={async (details) => {
+              await saveSplit({
+                expenseId: splittingExp.id,
+                paidBy: splittingExp.person,
+                splitDetails: details,
+              });
+            }}
+          />
+        )}
+
+        {/* Create / Edit Expense Modal */}
         {creatingExp && (
           <SharedExpenseModal expense={null} onClose={() => setCreatingExp(false)} />
         )}
         {editExp && <SharedExpenseModal expense={editExp} onClose={() => setEditExp(null)} />}
+
+        {/* Create / Edit Income Modal */}
         {creatingInc && <IncomeModal incomeItem={null} onClose={() => setCreatingInc(false)} />}
         {editInc && <IncomeModal incomeItem={editInc} onClose={() => setEditInc(null)} />}
       </AnimatePresence>
     </div>
-  );
-}
-
-// ── EXPENSE BREAKDOWN CARD COMPONENT ──
-function ExpenseBreakdownCard({
-  expenseCategorySums,
-  totalCategoryExpenses,
-  highlightCategory,
-  setHighlightCategory,
-}: {
-  expenseCategorySums: { category: string; amount: number }[];
-  totalCategoryExpenses: number;
-  highlightCategory: string | null;
-  setHighlightCategory: (cat: string | null) => void;
-}) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay: 0.15 }}
-      className="rounded-2xl bg-[#121212]/90 backdrop-blur-xl border border-white/[0.08] p-4 sm:p-5 space-y-3.5 shadow-xl"
-    >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="p-1.5 rounded-lg bg-[#FFC107]/10 text-[#FFC107]">
-            <Activity className="w-4 h-4" />
-          </div>
-          <div>
-            <h3 className="font-bold text-xs sm:text-sm text-foreground uppercase tracking-wider">
-              Expense Breakdown
-            </h3>
-            <p className="text-[10px] text-muted-foreground">Category allocation</p>
-          </div>
-        </div>
-        {highlightCategory && (
-          <button
-            onClick={() => setHighlightCategory(null)}
-            className="text-[10px] text-amber-400 hover:underline font-medium"
-          >
-            Clear filter
-          </button>
-        )}
-      </div>
-
-      {expenseCategorySums.length === 0 ? (
-        <p className="text-xs text-muted-foreground py-4 text-center">No expenses recorded.</p>
-      ) : (
-        <div className="space-y-2.5">
-          {expenseCategorySums.slice(0, 6).map((item) => {
-            const pct =
-              totalCategoryExpenses > 0
-                ? Math.round((item.amount / totalCategoryExpenses) * 100)
-                : 0;
-            const isSelected = highlightCategory === item.category;
-
-            return (
-              <button
-                key={item.category}
-                type="button"
-                onClick={() =>
-                  setHighlightCategory(isSelected ? null : item.category)
-                }
-                className={cn(
-                  "w-full text-left p-2 rounded-xl transition-all border text-xs cursor-pointer",
-                  isSelected
-                    ? "bg-[#FFC107]/10 border-[#FFC107]/40 ring-1 ring-[#FFC107]/30"
-                    : "bg-white/[0.02] border-white/[0.04] hover:bg-white/[0.04] hover:border-white/10"
-                )}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    {getCategoryIcon(item.category)}
-                    <span className="font-semibold text-foreground/90 capitalize">
-                      {item.category}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-muted-foreground">{pct}%</span>
-                    <span className="font-bold text-foreground font-mono tabular-nums">
-                      ₹{item.amount.toLocaleString("en-IN")}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="w-full bg-white/[0.04] h-1.5 rounded-full overflow-hidden mt-2">
-                  <div
-                    className="bg-gradient-to-r from-[#FFC107] to-[#FFD54F] h-full rounded-full transition-all duration-500"
-                    style={{ width: `${Math.max(4, pct)}%` }}
-                  />
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </motion.div>
   );
 }

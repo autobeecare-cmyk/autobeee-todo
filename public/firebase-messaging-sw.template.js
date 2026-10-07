@@ -106,14 +106,6 @@ function getActions(type) {
       return [
         { action: 'view', title: '✅ View Tasks' },
       ]
-    case 'none':
-    case 'none_out':
-    case 'auto_check_out':
-    case 'check_in_reminder':
-    case 'auto_leave':
-      return [
-        { action: 'view', title: '🐝 View Attendance' },
-      ]
     case 'goal':
     case 'goal_reminder':
       return [

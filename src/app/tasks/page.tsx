@@ -47,7 +47,7 @@ const PRIORITY_CONFIG = {
 const PERSONS: Person[] = ["Sourabh", "Asher", "All"];
 
 type ScopeFilter = "my" | "assigned_by_me" | "all";
-type QuickFilter = "all" | "urgent" | "high" | "today" | "upcoming";
+type QuickFilter = "all" | "overdue" | "urgent" | "high" | "today" | "upcoming";
 
 // ── Compact Mobile Task Card Component ──────────────────────────
 function MobileTaskCard({
@@ -612,17 +612,21 @@ export default function TasksPage() {
     // 1. Scope Filter: My Tasks / Assigned by Me / All
     if (scopeFilter === "my") {
       list = list.filter((t) => t.assignee === currentUser || t.assignee === "All");
+    } else if (scopeFilter === "assigned_by_me") {
+      list = list.filter((t) => t.assignee !== currentUser && t.assignee !== "All");
     }
 
     // 2. Quick Filter
-    if (quickFilter === "urgent") {
+    if (quickFilter === "overdue") {
+      list = list.filter((t) => t.deadline && isPast(new Date(t.deadline)) && !isToday(new Date(t.deadline)));
+    } else if (quickFilter === "urgent") {
       list = list.filter((t) => t.priority === "urgent");
     } else if (quickFilter === "high") {
       list = list.filter((t) => t.priority === "high");
     } else if (quickFilter === "today") {
       list = list.filter((t) => t.deadline && isToday(new Date(t.deadline)));
     } else if (quickFilter === "upcoming") {
-      list = list.filter((t) => t.deadline && !isPast(new Date(t.deadline)));
+      list = list.filter((t) => t.deadline && (!isPast(new Date(t.deadline)) || isToday(new Date(t.deadline))));
     }
 
     // 3. Search
@@ -758,6 +762,7 @@ export default function TasksPage() {
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
           {[
             { id: "all", label: "All" },
+            { id: "overdue", label: "Overdue" },
             { id: "urgent", label: "Urgent" },
             { id: "high", label: "High" },
             { id: "today", label: "Today" },

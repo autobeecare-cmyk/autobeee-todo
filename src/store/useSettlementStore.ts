@@ -5,6 +5,8 @@ import {
   getSettlements,
   createExpenseSplit,
   createSettlement,
+  saveExpenseSplit,
+  deleteExpenseSplit,
   subscribeSettlements,
 } from "@/lib/supabase/settlements";
 
@@ -17,6 +19,8 @@ interface SettlementStore {
 
   fetchSplitsAndSettlements: () => Promise<void>;
   addSplit: (split: Omit<ExpenseSplit, "id" | "createdAt">) => Promise<void>;
+  saveSplit: (split: { expenseId: string; paidBy: FounderName | string; splitDetails: { founder: FounderName; amount: number }[]; splitMethod?: any; expenseType?: any }) => Promise<void>;
+  deleteSplit: (expenseId: string) => Promise<void>;
   markPaid: (s: { payer: FounderName; payee: FounderName; amount: number; confirmedBy: FounderName; notes?: string }) => Promise<void>;
   initRealtime: () => () => void;
 }
@@ -38,6 +42,26 @@ export const useSettlementStore = create<SettlementStore>((set, get) => ({
       set({ splits, settlements, loading: false });
     } catch (err: any) {
       set({ error: err.message || "Failed to load settlements", loading: false });
+    }
+  },
+
+  saveSplit: async (split) => {
+    try {
+      await saveExpenseSplit(split as any);
+      await get().fetchSplitsAndSettlements();
+    } catch (err: any) {
+      console.error("Failed to save split:", err);
+      throw err;
+    }
+  },
+
+  deleteSplit: async (expenseId) => {
+    try {
+      await deleteExpenseSplit(expenseId);
+      await get().fetchSplitsAndSettlements();
+    } catch (err: any) {
+      console.error("Failed to delete split:", err);
+      throw err;
     }
   },
 

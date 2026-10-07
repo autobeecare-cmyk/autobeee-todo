@@ -1,5 +1,5 @@
 import { supabase } from "../supabase";
-import type { ExpenseSplit, Settlement, FounderName, FounderLedger, PairwiseDebt, Expense } from "../types";
+import type { ExpenseSplit, Settlement, FounderName, FounderLedger, PairwiseDebt, Expense, SplitMethod, ExpenseType } from "../types";
 import { logActivity } from "./activity";
 import { createNotification } from "./notifications";
 
@@ -20,20 +20,32 @@ export async function getExpenseSplits(): Promise<ExpenseSplit[]> {
   }));
 }
 
-export async function createExpenseSplit(split: Omit<ExpenseSplit, "id" | "createdAt">): Promise<ExpenseSplit> {
+export async function saveExpenseSplit(split: {
+  expenseId: string;
+  expenseType?: ExpenseType;
+  paidBy: FounderName | "Company Account" | string;
+  splitDetails: { founder: FounderName; amount: number; percentage?: number }[];
+  splitMethod?: SplitMethod;
+}): Promise<ExpenseSplit> {
   const { data, error } = await supabase
     .from("expense_splits")
-    .insert({
-      expense_id: split.expenseId,
-      expense_type: split.expenseType,
-      paid_by: split.paidBy,
-      split_method: split.splitMethod,
-      split_details: split.splitDetails,
-    })
+    .upsert(
+      {
+        expense_id: split.expenseId,
+        expense_type: split.expenseType || "shared_founder",
+        paid_by: split.paidBy,
+        split_method: split.splitMethod || "custom",
+        split_details: split.splitDetails,
+      },
+      { onConflict: "expense_id" }
+    )
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    console.error("saveExpenseSplit error:", error);
+    throw error;
+  }
 
   return {
     id: data.id,
@@ -44,6 +56,20 @@ export async function createExpenseSplit(split: Omit<ExpenseSplit, "id" | "creat
     splitDetails: data.split_details || [],
     createdAt: data.created_at,
   };
+}
+
+export async function createExpenseSplit(split: Omit<ExpenseSplit, "id" | "createdAt">): Promise<ExpenseSplit> {
+  return saveExpenseSplit(split);
+}
+
+export async function deleteExpenseSplit(expenseId: string): Promise<void> {
+  const { error } = await supabase
+    .from("expense_splits")
+    .delete()
+    .eq("expense_id", expenseId);
+  if (error) {
+    console.error("deleteExpenseSplit error:", error);
+  }
 }
 
 export async function getSettlements(): Promise<Settlement[]> {

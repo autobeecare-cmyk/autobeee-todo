@@ -1,105 +1,88 @@
+// src/app/api/ai/chat/route.ts — AutoBee Intelligence Streaming API Route
 import { NextResponse } from "next/server";
+import {
+  streamGeminiWithFallback,
+  createCleanTextStream,
+  GeminiServiceError,
+} from "@/lib/ai/gemini";
 
 export async function POST(req: Request) {
   try {
-    const { messages, context } = await req.json();
+    const body = await req.json().catch(() => null);
 
-    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new Error("Gemini API key is not configured in .env.local.");
-    }
-
-    // Map messages to Gemini contents format
-    const contents = messages.map((m: any) => {
-      const role = m.role === "assistant" ? "model" : "user";
-      return {
-        role,
-        parts: [{ text: m.content }]
-      };
-    });
-
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:streamGenerateContent?key=${apiKey}&alt=sse`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
+    if (!body || !Array.isArray(body.messages) || body.messages.length === 0) {
+      return NextResponse.json(
+        {
+          error: {
+            type: "bad_request",
+            message: "Invalid request: messages array is required.",
+            retryable: false,
+          },
         },
-        body: JSON.stringify({
-          contents,
-          systemInstruction: context
-            ? {
-                parts: [{ text: context }]
-              }
-            : undefined,
-          generationConfig: {
-            maxOutputTokens: 1500,
-            temperature: 0.7
-          }
-        })
-      }
-    );
-
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`Gemini API error: ${errText}`);
+        { status: 400 }
+      );
     }
 
-    const stream = new ReadableStream({
-      async start(controller) {
-        const reader = response.body?.getReader();
-        if (!reader) {
-          controller.close();
-          return;
+    const { messages, context } = body;
+
+    // Format messages for Gemini API
+    const contents = messages.map((m: any) => ({
+      role: m.role === "assistant" ? ("model" as const) : ("user" as const),
+      parts: [{ text: String(m.content || "") }],
+    }));
+
+    const systemInstruction = context
+      ? {
+          parts: [{ text: String(context) }],
         }
+      : undefined;
 
-        const decoder = new TextDecoder();
-        let buffer = "";
+    // Call Gemini with model fallback chain
+    const { response: geminiResponse, modelUsed } =
+      await streamGeminiWithFallback({
+        contents,
+        systemInstruction,
+        generationConfig: {
+          maxOutputTokens: 1800,
+          temperature: 0.7,
+        },
+      });
 
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
+    const cleanStream = createCleanTextStream(geminiResponse);
 
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split("\n");
-            buffer = lines.pop() || "";
-
-            for (const line of lines) {
-              const trimmed = line.trim();
-              if (!trimmed) continue;
-              if (trimmed.startsWith("data:")) {
-                const dataStr = trimmed.slice(5).trim();
-                try {
-                  const parsed = JSON.parse(dataStr);
-                  const textDelta = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
-                  if (textDelta) {
-                    controller.enqueue(new TextEncoder().encode(textDelta));
-                  }
-                } catch (e) {
-                  // Partial chunk or non-JSON - ignore
-                }
-              }
-            }
-          }
-        } catch (e) {
-          controller.error(e);
-        } finally {
-          controller.close();
-        }
-      }
-    });
-
-    return new Response(stream, {
+    return new Response(cleanStream, {
       headers: {
         "Content-Type": "text/plain; charset=utf-8",
         "Cache-Control": "no-cache, no-transform",
-        "Connection": "keep-alive"
-      }
+        "Connection": "keep-alive",
+        "X-AI-Model": modelUsed,
+      },
     });
-
   } catch (err: any) {
-    console.error("AI Chat API route error:", err);
-    return new Response(`Error: ${err.message}`, { status: 500 });
+    console.error("[AI Chat API Route Error]:", err);
+
+    if (err instanceof GeminiServiceError) {
+      return NextResponse.json(
+        {
+          error: {
+            type: err.type,
+            message: err.userMessage,
+            retryable: err.retryable,
+          },
+        },
+        { status: err.status }
+      );
+    }
+
+    return NextResponse.json(
+      {
+        error: {
+          type: "unknown",
+          message: "AutoBee Intelligence is temporarily unavailable. Please try again.",
+          retryable: true,
+        },
+      },
+      { status: 500 }
+    );
   }
 }

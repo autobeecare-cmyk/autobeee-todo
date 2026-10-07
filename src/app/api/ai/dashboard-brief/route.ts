@@ -1,60 +1,60 @@
+// src/app/api/ai/dashboard-brief/route.ts — AI Briefing Endpoint
 import { NextResponse } from "next/server";
+import { generateGeminiWithFallback, GeminiServiceError } from "@/lib/ai/gemini";
 
 export async function POST(req: Request) {
   try {
-    const { tasks, goals, expenses, currentUser } = await req.json();
+    const { tasks, goals, expenses, meetings, currentUser } = await req.json().catch(() => ({}));
 
-    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new Error("Gemini API key is not configured in .env.local.");
-    }
-
-    const systemInstruction = `You are a productivity assistant for a 2-person startup team (Sourabh, Asher). 
-Be brutally concise. 2-3 sentences max. Highlight what's urgent or overdue. 
-Mention money only if something notable (high spend, renewal due). 
-Never use bullet points. Write like a smart colleague, not a robot.`;
-
-    const promptText = `Current user: ${currentUser || "Sourabh"}
-Tasks: ${JSON.stringify(tasks?.slice(0, 20))}
-Goals: ${JSON.stringify(goals?.slice(0, 5))}
-Recent expenses (last 10): ${JSON.stringify(expenses?.slice(0, 10))}
-
-Give a 2-3 sentence focus brief for today.`;
-
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
+    const systemInstruction = {
+      parts: [
+        {
+          text: `You are AutoBee's Chief of Staff and AI Founder Copilot for Sourabh and Asher.
+Be direct, executive, concise, and numbers-focused.
+Limit response to 2-3 high-impact sentences.
+Surface immediate priority bottlenecks, upcoming commitments, or runway status.
+No conversational filler. Write like an experienced startup co-founder.`,
         },
-        body: JSON.stringify({
-          contents: [
-            {
-              role: "user",
-              parts: [{ text: promptText }]
-            }
-          ],
-          systemInstruction: {
-            parts: [{ text: systemInstruction }]
-          },
-          generationConfig: {
-            maxOutputTokens: 200,
-            temperature: 0.7
-          }
-        })
-      }
-    );
+      ],
+    };
 
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.error?.message || "Failed to query Gemini API");
+    const promptText = `Current Founder: ${currentUser || "Sourabh"}
+Open Tasks: ${JSON.stringify((tasks || []).slice(0, 15))}
+Active Goals: ${JSON.stringify((goals || []).slice(0, 5))}
+Recent Expenses: ${JSON.stringify((expenses || []).slice(0, 5))}
+Upcoming Meetings: ${JSON.stringify((meetings || []).slice(0, 3))}
+
+Provide today's executive focus brief.`;
+
+    const { text, modelUsed } = await generateGeminiWithFallback({
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: promptText }],
+        },
+      ],
+      systemInstruction,
+      generationConfig: {
+        maxOutputTokens: 250,
+        temperature: 0.6,
+      },
+    });
+
+    const brief = text.trim() || "All systems operational. Review today's priority tasks and upcoming milestones.";
+
+    return NextResponse.json({ brief, model: modelUsed });
+  } catch (err: any) {
+    console.error("[Dashboard Brief API Error]:", err);
+
+    if (err instanceof GeminiServiceError) {
+      return NextResponse.json({
+        brief: "All systems operational. Focus on key objectives for today.",
+        warning: err.userMessage,
+      });
     }
 
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "All clear — nothing urgent today.";
-    return NextResponse.json({ brief: text });
-  } catch (err: any) {
-    console.error("Dashboard Brief API error:", err);
-    return NextResponse.json({ brief: "All clear — nothing urgent today." });
+    return NextResponse.json({
+      brief: "All systems operational. Review today's priority tasks and upcoming milestones.",
+    });
   }
 }

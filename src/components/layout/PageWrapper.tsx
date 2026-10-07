@@ -5,7 +5,7 @@ export function PageWrapper({ children }: { children: React.ReactNode }) {
   const sidebarOpen = useUIStore(s => s.sidebarOpen);
   return (
     <div 
-      className="transition-[margin] duration-300 page-wrapper" 
+      className="transition-[margin] duration-300 page-wrapper pb-24 md:pb-0 min-h-[100dvh]" 
       id="page-wrapper"
     >
       <style>{`
